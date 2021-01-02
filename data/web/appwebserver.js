@@ -5,14 +5,14 @@
 // Recuperation des données dynamique via une HTTP POST sur la page d'origine
 // Fonctionne avec la librairie arduino appwebserver
 // 
-// V1.0 
+// V1.0.1 
 // 
 // Global
 var req_data = null;
 var refreshTimeout = 0;
 
-// GetAsyncData envoie une requête a l'adresse courante 
-function GetAsyncData() {
+// refreshBegin start a refresh request to the device 
+function refreshBegin() {
 	var refreshList = document.querySelectorAll('.refresh');
 	if (refreshList.length == 0) {
 		return;  // abort   refreshList will not be call again
@@ -77,16 +77,16 @@ function GotAsyncData() {
 		}
 	}
 	try {
-      // callback to user js code to warn abour end of refresh
+      // call to user optional js function "refreshPage()" to warn about end of refresh
 	  refreshPage();
 	} catch {		
 	}
-	// Next iteration
+	// Next iteration minimum 100ms
 	if (refreshTimeout > 0 ) {
 		if (refreshTimeout < 100) {
 			refreshTimeout = 100
 		}
-		setTimeout("GetAsyncData()", refreshTimeout);
+		setTimeout("refreshBegin()", refreshTimeout);
 	}
 	return;
 }

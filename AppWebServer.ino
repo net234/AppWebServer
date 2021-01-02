@@ -36,54 +36,367 @@
 
 
 #define LED_LIFE      LED_BUILTIN
-#define APP_VERSION   "AppWebServer Validate V1.0.4"
+#define LED2         16
+#define BP0 0
+#define BP0_DOWN      LOW
+#define APP_VERSION   "AppWebServer Validate V1.1"
 
 #define LED_ON        LOW
 //Objet serveur WEB
 #include  "AppWebServer.h"
-AppWebServer    ServeurWeb;
-//int translateKey;
-//
-//bool onTranslateKeyPtr;
-//bool redirectUri;
-//bool localIp;
-//bool compareNetwork = true;
+AppWebServer    MyWebServer;
 
-//Données demandées par les pages web par les tag "[#key#]"
-void on_TranslateKey(String & key) {
-  if ( key.equals(F("APP_VERSION")) ) {
-    key = APP_VERSION;
-  } else {
-    Serial.print(F("WEB MISS KEY='"));
-    Serial.print(key);
-    Serial.println(F("'"));
-    key += "???";
+
+#include "betaEvents.h"
+
+EventTracker MyEvent(LED_LIFE);   // instance de eventManager
+
+/* Evenements du Manager (voir betaEvents.h)
+  evNill = 0,      // No event
+  ev100Hz,         // tick 100HZ    non cumulative (see betaEvent.h)
+  ev10Hz,          // tick 10HZ     non cumulative (see betaEvent.h)
+  ev1Hz,           // un tick 1HZ   cumulative (see betaEvent.h)
+  ev24H,           // 24H when timestamp pass over 24H
+  //  evDepassement1HZ,
+  evLEDOn,
+  evLEDOff,
+  evInChar,
+  evInString,
+*/
+
+// Liste des evenements specifique a ce projet
+enum tUserEventCode {
+  // evenement recu
+  evBP0Down = 100,    // BP0 est appuyé
+  evBP0Up,            // BP0 est relaché
+  evBP0MultiDown,     // BP0 est appuyé plusieur fois de suite
+  evBP0LongDown,      // BP0 est maintenus appuyé plus de 3 secondes
+  evBP0LongUp,        // BP0 est relaché plus de 1 secondes
+  // evenement action
+  doReset,
+};
+
+
+
+
+bool sleepOk = true;
+int  multi = 0; // nombre de clic rapide
+uint32_t refFreeMem;
+
+void setup() {
+  // IO Setup
+  pinMode(BP0, INPUT_PULLUP);
+  pinMode(LED2, OUTPUT);
+  Serial.begin(115200);
+  Serial.println(F("\r\n\n" APP_VERSION));
+
+  // Start instance
+  MyEvent.begin();
+
+  Serial.print(F(" Freemem Start= "));
+  Serial.println(ESP.getFreeHeap());
+
+  //  Serial.setDebugOutput(true);  // affichage du debug mode pour webserve
+
+
+
+  //  ServeurWeb.WiFiMode = WIFI_STA;  // mode par defaut
+  MyWebServer.setCallBack_OnTranslateKey(&on_TranslateKey);
+  MyWebServer.setCallBack_OnStartRequest(&on_HttpRequest);
+  MyWebServer.setCallBack_OnRefreshItem(&on_RefreshItem);
+  //  ServeurWeb.setCallBack_OnRepeatLine(&on_RepeatLine);
+  MyWebServer.begin(F(APP_VERSION));
+
+  //Check if WEB in flash is the good on  (dont forget to UPLOAD the web on the flash with LittleFS)
+  if ( !String(F(APP_VERSION)).startsWith( MyWebServer.getWebName() ) ) {
+    Serial.print("Invalid WEB pages '");
+    Serial.print(MyWebServer.getWebName());
+    Serial.println("'");
+    delay(3000);
+    ESP.reset();
+  }
+
+
+
+
+  refFreeMem = ESP.getFreeHeap();
+  Serial.print(F(" Freemem Ref= "));
+  Serial.println(refFreeMem);
+
+  Serial.println("Bonjour ....");
+}
+
+
+
+
+bool BP0_Status = !BP0_DOWN;
+byte BP0_Multi = 0;
+bool LED2_Status = LED_ON;    // led is on
+uint32_t BP0_lastClick = 0;    // last click on board FLASH button en millis
+
+
+
+bool trackMem = false;
+
+
+void loop() {
+  MyWebServer.handleEvent();     // handle http service and wifi
+
+  MyEvent.getEvent(sleepOk);
+  MyEvent.handleEvent();
+  switch (MyEvent.currentEvent.code)
+  {
+
+    case ev10Hz:
+      jobBP0();  // detection poussoir
+      break;
+
+
+    case ev1Hz:
+      if (trackMem) {
+        Serial.print(F(" Freemem = "));
+        Serial.print(ESP.getFreeHeap());
+        Serial.print(F(" / "));
+        Serial.println( refFreeMem - ESP.getFreeHeap() );
+
+      }
+      break;
+
+    case ev24H:
+      Serial.println("---- 24H ---");
+      break;
+
+    case evBP0Down:
+      Serial.println(F("BP0 Down"));
+      BP0_lastClick = millis();
+      MyEvent.setMillisecLED(500, 50);   // LED_LIFE 2HZ ratio 50%
+      switchLed2();                      // toogle LED_2
+      break;
+
+    case evBP0Up:
+      Serial.println(F("BP0 Up"));
+      MyEvent.setMillisecLED(1000, 10);   // LED_LIFE 1HZ ratio 10%
+      break;
+
+    case evBP0LongDown:
+      Serial.println(F("BP0 Long Down"));
+      if (multi == 5) {
+        Serial.println(F("RESET"));
+        MyEvent.pushEvent(doReset);
+      }
+      break;
+
+    case evBP0LongUp:
+      BP0_Multi = 0;
+      Serial.println(F("BP0 Long Up"));
+      break;
+
+    case evBP0MultiDown:
+      multi = MyEvent.currentEvent.param;
+      Serial.print(F("BP0 Multi Clic:"));
+      Serial.println(multi);
+
+      break;
+
+
+    case doReset:
+      delay(100);
+#ifdef  __AVR__
+      wdt_enable(WDTO_120MS);
+#else
+      ESP. restart();
+#endif
+      while (1)
+      {
+        delay(1);
+      }
+      break;
+
+
+    case evInChar:
+      switch (MyEvent.inChar)
+      {
+        case '0': delay(10); break;
+        case '1': delay(100); break;
+        case '2': delay(200); break;
+        case '3': delay(300); break;
+        case '4': delay(400); break;
+        case '5': delay(500); break;
+
+
+
+
+
+        case 't':
+          trackMem = !trackMem;
+          break;
+
+
+
+
+      }
+
+
+      break;
+
+
+    case evInString:
+
+      if (MyEvent.inputString.equals(F("SLEEP"))) {
+        sleepOk = !sleepOk;
+        Serial.print(F("Sleep=")); Serial.println(sleepOk);
+      }
+
+      if (MyEvent.inputString.equals(F("FREE"))) {
+        Serial.print(F("Ram=")); Serial.println(MyEvent.freeRam());
+      }
+
+      if (MyEvent.inputString.equals(F("RESET"))) {
+        Serial.println(F("RESET"));
+        MyEvent.pushEvent(doReset);
+      }
+
+      if (MyEvent.inputString.equals(F("WIFIOFF"))) {
+        Serial.println("setWiFiMode(WiFi_OFF)");
+        WiFi.mode(WIFI_OFF);
+      }
+
+      if (MyEvent.inputString.equals(F("WIFISTA"))) {
+        Serial.println("setWiFiMode(WiFi_STA)");
+        WiFi.mode(WIFI_STA);
+      }
+
+      if (MyEvent.inputString.equals(F("WIFIAP"))) {
+        Serial.println("setWiFiMode(WiFi_AP)");
+        WiFi.mode(WIFI_AP);
+      }
+
+
+      if (MyEvent.inputString.equals(F("STATION"))) {
+        Serial.println("Start Station");
+        WiFi.begin();
+      }
+
+      if (MyEvent.inputString.equals(F("AP"))) {
+        Serial.println("Start AP");
+        WiFi.softAP(MyWebServer._deviceName);
+      }
+
+      if (MyEvent.inputString.equals(F("RAZCONFIG"))) {
+        Serial.println("raz config file");
+        MyWebServer.razConfig();
+      }
+
+
   }
 }
 
-//Donnée de refraichissement demandée par les pages web
-bool on_RefreshItem(const String & keyname, String & key) {
-  //  Serial.print(F("Got refresh "));
-  //  Serial.print(keyname);
-  //  Serial.print(F("="));
-  //  Serial.println(key);
+//------------------------ function local ----------------------------------------
 
-  if ( keyname.equals("CLOCK") ) {
-    long now = millis() / 1000;
-    byte min = (now / 60) % 60;
-    String akey;
-    if (min < 10) akey += '0';
-    akey += String(min);
-    akey += ':';
-    byte sec = now % 60;
-    if (sec < 10) akey += '0';
-    akey +=  String(sec);
-    if (akey != key) {
-      key = akey;
-      return (true);
+// deal with bp0 to generate evBP0Down, evBP0UP, evBP0LongDown , evBPLongUp , evBP0MultiDown
+void jobBP0() {
+  if ( BP0_Status == digitalRead(BP0) ) return;  // no change on BP0
+
+  // changement d'etat BP0
+  BP0_Status = !BP0_Status;
+  if ( BP0_Status == BP0_DOWN ) {
+
+    MyEvent.pushEvent(evBP0Down);
+    MyEvent.pushDelayEvent(3000, evBP0LongDown); // set an event BP0 long down
+    MyEvent.removeDelayEvent(evBP0LongUp);       // clear the event BP0 long up
+    if ( ++BP0_Multi > 1) {
+      MyEvent.pushEvent(evBP0MultiDown, BP0_Multi);
     }
-    return (false);
+  } else {
+
+    MyEvent.pushEvent(evBP0Up);
+    MyEvent.pushDelayEvent(1000, evBP0LongUp);   // set an event BP0 long up
+    MyEvent.removeDelayEvent(evBP0LongDown);     // clear the event BP0 long down
   }
+}
+
+void switchLed2() {
+  LED2_Status = ! LED2_Status;
+  digitalWrite(LED2, LED2_Status);
+
+  Serial.print("Led is ");
+  Serial.println(getLedStatus());
+
+}
+
+String getLedStatus() {
+  // ledState to say if led is on or off
+  if ( LED2_Status == LED_ON ) {
+    return ("LED ON");
+  }
+  return ("LED OFF");
+}
+
+
+
+//------------------------- call back WEB --------------------------------------------
+
+////// === call back to handle request (grab the "Swith the led button") ============================
+
+
+void on_HttpRequest(const String &filename, const  String &submitValue) {
+  if  ( submitValue ==  "switchLed" ) {
+    switchLed2();
+  }
+}
+
+
+////// ==== callback to display data on page /////////////
+
+//on_TranslateKey is call on each tag "[#key#]" the tag will be replaced by the value you put in 'key' parameter
+//webdemo request 2 key
+void on_TranslateKey(String & key) {
+
+  if ( key.equals("APP_VERSION") ) {
+
+    //  APP_VERSION appname wich is displayed on almost every page
+    key = APP_VERSION;
+
+  } else if ( key.equals("ledStatus") ) {
+    key = getLedStatus();
+
+  } else if ( key.equals("lastClickTime") ) {
+
+    // lastClickTime in second
+    key = String( (millis() - BP0_lastClick) / 1000);
+  } else {
+
+    // to track typo on key
+    Serial.print("Missing key '");
+    Serial.print(key);
+    Serial.println("'");
+    key = "?" + key + "?"; // to make a visual on the page
+  }
+}
+
+
+// call back to display dynamic data on the web page  (class=refresh) ----------------------------------
+bool on_RefreshItem(const String & keyname, String & key) {
+  if ( keyname.equals("ledStatus") ) {
+    String aText = getLedStatus();
+    if (aText != key) {
+      key = aText;
+      return (true);  // text is chaged display it
+    }
+    return (false);  // text is same do nothing
+  }
+
+  if ( keyname.equals("lastClickTime") ) {
+    String aText = String( (millis() - BP0_lastClick) / 1000);
+    if (aText != key) {
+      key = aText;
+      return (true);  // text is chaged display it
+    }
+    return (false);  // text is same do nothing
+  }
+
+
+  // timer for the refresh rate  300 is good to display seconds
   if ( keyname.equals("refresh") ) {
     if (key.toInt() != 300) {
       key = 300;
@@ -91,266 +404,65 @@ bool on_RefreshItem(const String & keyname, String & key) {
     }
     return (false);
   }
-  if ( keyname.equals("RESULTAT") ) {
-    String res = F("Bonjour à tous");
-    if (res != key) {
-      key = res;
-      return (true);
-    }
-    //    if (key.length() < 5) {
-    //      key = F("Le_bruit_de_la_mer_....__________");
-    //      return (true);
-    //    }
-    //    key += key[0];
-    //    key.remove(0,1);
-    //    return (true);
-  }
+
+  // track unanswred refresh
+  Serial.print(F("Got unknow refresh "));
+  Serial.print(keyname);
+  Serial.print(F("="));
+  Serial.println(key);
+
+
   return (false);
 }
 
 
-//
-bool resetRequested = false;
-long refFreeMem;
+
+
+
+//  if (ServeurWeb.WiFiModeChanged) {
+//    //{ twm_WIFI_OFF = 0, twm_WIFI_STA, twm_WIFI_AP,twm_WIFI_APSETUP };
+//    switch (ServeurWeb.getWiFiMode()) {
+//      case twm_WIFI_OFF:
+//        Serial.println(F("TW wifi Mode OFF"));
+//        break;
+//      case twm_WIFI_STA:
+//        Serial.println(F("TW wifi Mode Station"));
+//        break;
+//      case twm_WIFI_AP:
+//        Serial.println(F("TW wifi Mode AP"));
+//        break;
+//      case twm_WIFI_APSETUP:
+//        Serial.println("TW wifi Mode AP Setup");
+//        break;
+//      default:
+//        Serial.print(F("TW mode ?:"));
+//        Serial.println(ServeurWeb.getWiFiMode());
+//    } //switch
+//  }// if Mode changed
 
 
 
 
-void setup() {
-
-  // Initialisation Hard des IO
-  pinMode(LED_LIFE, OUTPUT);
-  // init Serial
-  Serial.begin(115200);
-  Serial.println(F(APP_VERSION));
-  Serial.print(F(" Freemem Start= "));
-  Serial.println(ESP.getFreeHeap());
-
-  Serial.setDebugOutput(true);  // affichage du debug mode pour webserve
-
-
-  //  ServeurWeb.WiFiMode = WIFI_STA;  // mode par defaut
-  ServeurWeb.setCallBack_OnTranslateKey(&on_TranslateKey);
-  //ServeurWeb.setCallBack_OnRequest(&HttpRequest);
-  ServeurWeb.setCallBack_OnRefreshItem(&on_RefreshItem);
-  //  ServeurWeb.setCallBack_OnRepeatLine(&on_RepeatLine);
-  ServeurWeb.begin();
-  refFreeMem = ESP.getFreeHeap();
-  Serial.print(F(" Freemem Ref= "));
-  Serial.println(refFreeMem);
-
-}
-
-
-
-bool track = false;
-
-
-void loop() {
-  //  // run AP mode on BP0
-  //  if (digitalRead(0) == LOW) {
-  //    ServeurWeb.configureWiFi(true);
-  //  }
-  ServeurWeb.handleEvent();     // handle http service and wifi
-
-  //Check ServeurWeb Status
-  static    long parsec = 0;
-  parsec++;
-  static long timer = millis();
-  if (millis() - timer > 1000) {
-    timer += 1000;
-    if (resetRequested) {
-      delay(1000);
-      ESP.reset();
-      while (1) {};
-    }
-    if (track) {
-      Serial.print("loop = ");
-      Serial.print(parsec);
-      Serial.print(F(" Freemem = "));
-      Serial.print(ESP.getFreeHeap());
-      Serial.print(F(" / "));
-      Serial.println( refFreeMem - ESP.getFreeHeap() );
-
-    }
-    parsec = 0;
-
-  }
-
-  //  if (ServeurWeb.WiFiModeChanged) {
-  //    //{ twm_WIFI_OFF = 0, twm_WIFI_STA, twm_WIFI_AP,twm_WIFI_APSETUP };
-  //    switch (ServeurWeb.getWiFiMode()) {
-  //      case twm_WIFI_OFF:
-  //        Serial.println(F("TW wifi Mode OFF"));
-  //        break;
-  //      case twm_WIFI_STA:
-  //        Serial.println(F("TW wifi Mode Station"));
-  //        break;
-  //      case twm_WIFI_AP:
-  //        Serial.println(F("TW wifi Mode AP"));
-  //        break;
-  //      case twm_WIFI_APSETUP:
-  //        Serial.println("TW wifi Mode AP Setup");
-  //        break;
-  //      default:
-  //        Serial.print(F("TW mode ?:"));
-  //        Serial.println(ServeurWeb.getWiFiMode());
-  //    } //switch
-  //  }// if Mode changed
-
-
-
-
-  //  if (ServeurWeb.WiFiStatusChanged) {
-  //    //WIFI_OFF, WIFI_OK, WIFI_DISCONNECTED, WIFI_TRANSITION
-  //    switch (ServeurWeb.getWiFiStatus()) {
-  //      case tws_WIFI_TRANSITION:
-  //        Serial.println(F("TS wifi en transition"));
-  //        break;
-  //      case tws_WIFI_OFF:
-  //        Serial.println(F("TW wifi off"));
-  //        digitalWrite(LED_LIFE, !LED_ON);
-  //        break;
-  //      case tws_WIFI_DISCONNECTED:
-  //        Serial.println(F("TW wifi Deconnecte"));
-  //        digitalWrite(LED_LIFE, !LED_ON);
-  //        break;
-  //      case tws_WIFI_OK:
-  //        digitalWrite(LED_LIFE, LED_ON);
-  //        Serial.println("TW wifi station Connected");
-  //        break;
-  //      default:
-  //        Serial.print(F("TW Status?:"));
-  //        Serial.println(ServeurWeb.getWiFiStatus());
-  //    } //switch
-  //  }// if status changed
-
-  if (Serial.available())
-  {
-    char inChar = (char)Serial.read();
-    switch (inChar) {
-      //      case 'B':
-      //        Serial.println("Wifi.mode(OFF)");
-      //
-      //        WiFi.mode(WIFI_OFF);
-      //
-      //        delay(100);
-      //        break;
-      //      case 'C':
-      //        Serial.println("Wifi.mode(AP)");
-      //        WiFi.mode(WIFI_AP);
-      //        break;
-      //      case 'D':
-      //        Serial.println("Wifi.mode(STA)");
-      //        WiFi.mode(WIFI_STA);
-      //        break;
-      //      case 'E':
-      //        persistentStat = !persistentStat;
-      //        Serial.print("persistent ");
-      //        Serial.println(persistentStat);
-      //        Serial.setDebugOutput(persistentStat);
-      //        break;
-      //      case 'G':
-      //        Serial.println("Hostname = ''");
-      //        ServeurWeb.setHostname("");
-      //        break;
-
-      //      case 'H':
-      //        Serial.println("Hostname = APPWEB");
-      //        ServeurWeb.setHostname("APPWEB");
-      //        break;
-
-      //      case 'I':
-      //        Serial.println("forceSleepBegin");
-      //
-      //        WiFi.forceSleepBegin();
-      //        delay(100);
-      //        break;
-
-
-
-      //      case 'G':
-      //        debugStat = !debugStat;
-      //        Serial.print("Debug ");
-      //        Serial.println(debugStat);
-      //        Serial.setDebugOutput(debugStat);
-      //        break;
-
-      //      case 'L':
-      //        listenInterval = (listenInterval + 1) % 11;
-      //        Serial.print("Light listenInterval ");
-      //        Serial.println(listenInterval);
-      //
-      //        WiFi.setSleepMode (WIFI_LIGHT_SLEEP, listenInterval);
-      //        break;
-      //      case 'M':
-      //        listenInterval = (listenInterval + 1) % 11;
-      //        Serial.print("Modem listenInterval ");
-      //        Serial.println(listenInterval);
-      //
-      //        WiFi.setSleepMode (WIFI_MODEM_SLEEP, listenInterval);
-      //        break;
-
-      case '0':
-        Serial.println("setWiFiMode(WiFi_OFF)");
-        WiFi.mode(WIFI_OFF);
-        break;
-      case '1':
-        Serial.println("setWiFiMode(WiFi_STA)");
-
-        WiFi.mode(WIFI_STA);
-        break;
-      case '2':
-        Serial.println("setWiFiMode(WiFi_AP)");
-        WiFi.mode(WIFI_AP);
-        break;
-
-      case '3':
-        Serial.println("setWiFiMode(WiFi_AP)");
-        WiFi.mode(WIFI_AP_STA);
-        break;
-
-      case 'S':
-        Serial.println("Start Station");
-        WiFi.begin();
-        break;
-
-      case 'A':
-        Serial.println("Start AP");
-        WiFi.softAP(ServeurWeb._deviceName);
-        break;
-
-
-
-      case 'W':
-        Serial.println("setWiFiMode(WiFi_STA with SSID & PASS)");
-        //    ServeurWeb.setWiFiMode(WIFI_STA, "mon_wifi", "ultrasecret");
-        break;
-
-      case 'R':
-        Serial.println("reset.");
-        delay(3000);
-        ESP.reset();
-        while (1) {};
-        break;
-      case 'T':
-        track = !track;
-        break;
-      case 'E':
-        Serial.println("raz config file");
-        ServeurWeb.razConfig();
-        break;
-
-      case 'L':
-        Serial.print("long delay ");
-        for (int N = 1; N <= 30; N++) {
-          delay(1000);
-          Serial.print('.');
-        }
-        Serial.println();
-        break;
-
-    }
-  }
-  delay(1);
-}// loop
+//  if (ServeurWeb.WiFiStatusChanged) {
+//    //WIFI_OFF, WIFI_OK, WIFI_DISCONNECTED, WIFI_TRANSITION
+//    switch (ServeurWeb.getWiFiStatus()) {
+//      case tws_WIFI_TRANSITION:
+//        Serial.println(F("TS wifi en transition"));
+//        break;
+//      case tws_WIFI_OFF:
+//        Serial.println(F("TW wifi off"));
+//        digitalWrite(LED_LIFE, !LED_ON);
+//        break;
+//      case tws_WIFI_DISCONNECTED:
+//        Serial.println(F("TW wifi Deconnecte"));
+//        digitalWrite(LED_LIFE, !LED_ON);
+//        break;
+//      case tws_WIFI_OK:
+//        digitalWrite(LED_LIFE, LED_ON);
+//        Serial.println("TW wifi station Connected");
+//        break;
+//      default:
+//        Serial.print(F("TW Status?:"));
+//        Serial.println(ServeurWeb.getWiFiStatus());
+//    } //switch
+//  }// if status changed
