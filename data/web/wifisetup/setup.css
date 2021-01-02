@@ -5,7 +5,10 @@ margin: 0px auto;
 text-align: center;
 }
 body {
-margin-top: 50px;
+	text-align: center;
+	display: inline-block;
+	min-width:300px;
+margin-top: 30px;
 background-color: #D3C7AD;
  background: linear-gradient(45deg, #D3C7AD 10%, #202020 25%, #202020 50%, #D3C7AD 50%, #D3C7AD 70%, #202020 75%);
  background-size:98px 98.9px;
