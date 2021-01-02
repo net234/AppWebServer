@@ -22,17 +22,18 @@
 
 #include "AppWebServer.h"
 //#include <ESP8266WiFi.h>
+
+#include "betaEvents.h"  // needed to be Event User of the Sketch Instance
+
 // pointeur vers l'instance utilisateur
 AppWebServer*    AppWebPtr = NULL;
 
 #include "AppWebConfig.h"  //include LittleFS
 FileConfig  TWConfig;
 
-
-#include <ESP8266WebServer.h>   // web server to answer WEB request and EEDOMUS BOX request
-#include <ESP8266mDNS.h>      // not used here we stay with IP on this side (Wifimanageg need id on his side)
-#include <DNSServer.h>        // only used by captive to redirect web request to main page
-// ====== DO NOT REMOVE ===========================
+#include <ESP8266WebServer.h>    // web server to answer WEB request
+#include <ESP8266mDNS.h>         // need to answer   devicename.local  request
+#include <DNSServer.h>           // used by Captive Portal to redirect web request to main page
 
 
 // Server Instance
@@ -48,8 +49,6 @@ String  TryStatus;
 // Out of instance function
 #include "AppWebCaptive.h"    //out of instance functions
 #include "AppWebHTTP.h"    //out of instance functions
-
-
 }
 
 using namespace TWS;
@@ -57,9 +56,14 @@ using namespace TWS;
 
 // Objet AppWeb
 //// constructeur
+//TODO: cant Serial.print here    should throw a system error
 AppWebServer::AppWebServer() {
-  if (AppWebPtr != NULL) {
-    D1_print(F("tws - Error: Only one instance for AppWebServer"));
+  if (AppWebPtr != nullptr) {
+    D1_print(F("Error: Only one instance for AppWebServer"));
+    while (true) delay(100);
+  }
+  if (EventManagerPtr == nullptr) {
+    D1_print(F("Error: Missing instance of BetaEvents object"));
     while (true) delay(100);
   }
   AppWebPtr = this;
@@ -85,12 +89,10 @@ void AppWebServer::end() {
 
 
 
-void AppWebServer::begin(const String devicename ,const int debuglevel  ) {
+void AppWebServer::begin(const String devicename , const int debuglevel  ) {
   // FS
   if (!TWFS.begin()) {
     D1_println(F("TW: FS en erreur  !!!!!"));
-  } else {
-    D_println(F("TW: FS Ok"));
   }
   // init random seed
   randomSeed(micros());
@@ -101,11 +103,13 @@ void AppWebServer::begin(const String devicename ,const int debuglevel  ) {
   if (_defaultWebFolder.length() == 0) _defaultWebFolder = F("/web");
   _captiveWebFolder = TWConfig.captiveWebFolder;
   if (_captiveWebFolder.length() == 0) _captiveWebFolder = F("/web/wifisetup");  // todo: should be "/captive" ??
-  _captiveAP = true;  //
+  _captiveAP = true;  //TODO  a valid AP mode without captive
+
+  // if no name
   if (TWConfig.deviceName.length() == 0) TWConfig.deviceName = devicename;
-  _debugLevel=debuglevel;
+  _debugLevel = debuglevel;
   Serial.setDebugOutput(_debugLevel > 2);
-  
+
 
 
   // grab WiFi actual status
@@ -121,6 +125,7 @@ void AppWebServer::begin(const String devicename ,const int debuglevel  ) {
   //reconfig eventuelle de l'ip AP
   //if ( (WiFi.getMode() & WIFI_AP) && (WiFi.softAPIP() != IPAddress(10, 10, 10, 10)) ) {
   if ( WiFi.softAPIP() != IPAddress(10, 10, 10, 10) ) {
+    WiFi.persistent(false);
     WiFiMode_t mode = WiFi.getMode();
     D_print(F("WS: reconfig APIP 10.10.10.10"));
     IPAddress local_IP(10, 10, 10, 10);
@@ -130,18 +135,20 @@ void AppWebServer::begin(const String devicename ,const int debuglevel  ) {
     D_print(F("SW: SoftAP IP = "));
     D_println(WiFi.softAPIP());
     WiFi.mode(mode);
+    WiFi.persistent(true);
   }
 
   if ( TWConfig.bootForceAP > 0 && !(WiFi.getMode() & WIFI_AP) ) {
     D_println(F("TWS: Force mode Captive AP !!!"));
-    WiFi.persistent(false);
+    WiFi.persistent(false);  // to go back on initial mode in case of reset
     WiFi.enableAP(true);   // wifi est non persistant
     WiFi.persistent(true);
     timerCaptivePortal = TWConfig.bootForceAP * 60;
   }
 
   _deviceName = WiFi.softAPSSID();              //device name from WiFi
-
+  //TODO: revoir les persistant true/false au boot
+  //      probalement creer une function saveWiFiDeviceNameInFlash
   if ( TWConfig.deviceName != _deviceName) {
     D_print(F("SW: need to init WiFi same as config   !!!!! "));
     setDeviceName(TWConfig.deviceName);  //check devicename validity
@@ -201,6 +208,18 @@ void AppWebServer::setDeviceName(const String devicename) {
 
 
 void AppWebServer::handleEvent() {
+  // deal with event receved
+  switch (EventManagerPtr->currentEvent.code)
+  {
+    case evNill: break;
+    case evWEBTrySetup:              jobWEBTrySetup(); break;          // A new config setup need to try
+    case evWEBTimerEndOfTrySetup:
+      D1_print(F("WS: TrySetup Abort : timeout"));
+      jobWEBTrySetupAbort();
+
+      break;     // Abort try setup (time out)
+  }
+
   // Check if mode changed
   WiFiMode_t wifimode = WiFi.getMode();
   if (  _WiFiMode != wifimode) {
@@ -299,40 +318,7 @@ void AppWebServer::handleEvent() {
 
 
       TWS::localIp = WiFi.localIP().toString();  // recuperation de l'ip locale
-
-      if (trySetupPtr && trySetupPtr->isTrying ) {
-
-        WiFi.enableSTA(false);
-        WiFi.persistent(true);
-        D1_println(F("WF: Moving to STATION"));
-        WiFi.enableAP(false);    // stop AP
-        WiFi.begin(trySetupPtr->SSID, trySetupPtr->PASS);  // save STATION setup in flash
-
-
-
-        if ( trySetupPtr->deviceName != _deviceName) {
-          D_print(F("SW: need to init WiFi same as new config   !!!!! "));
-          D_print(trySetupPtr->deviceName);
-          D_print(F("!="));
-          D_println(_deviceName);
-          setDeviceName(trySetupPtr->deviceName);  //check devicename validity
-          WiFi.softAP(_deviceName);   // save in flash
-          if (TWConfig.deviceName != WiFi.softAPSSID()) {
-            D_print(F("SW: need to need to rewrite flah config   !!!!! "));
-            D_print(TWConfig.deviceName);
-            D_print(F("!="));
-            D_println(WiFi.softAPSSID());
-            TWConfig.deviceName = WiFi.softAPSSID();  //put back devicename in config if needed
-            TWConfig.changed = true;
-            TWConfig.save();
-          }
-          WiFi.enableAP(false);    // stop AP config is done
-        }
-
-        delete trySetupPtr;
-        trySetupPtr = nullptr;
-
-      }
+      if (trySetupPtr) jobWEBTrySetupValidate();
       bool result = MDNS.begin(_deviceName);
       D_print(F("STA: MS DNS ON : "));
       D_print(_deviceName);
@@ -342,22 +328,8 @@ void AppWebServer::handleEvent() {
     } else {
       MDNS.end();  // only if connected
     }
-    if (trySetupPtr && status == WL_CONNECT_FAILED ) {
-      // bad password
-      D1_println(F("Bad Password"));
-      D_println(F("Remove try config"));
-      //set back old credential if any
-      if (trySetupPtr->SSID.length() > 0) {
-        WiFi.enableSTA(false);
-        WiFi.begin(trySetupPtr->oldSSID, trySetupPtr->oldPASS);  // put back STA old credential if any
-      }
-      WiFi.persistent(true);
-      delete trySetupPtr;
-      trySetupPtr = nullptr;
 
-    }
-
-
+    if (trySetupPtr && status == WL_CONNECT_FAILED ) jobWEBTrySetupAbort();
 
   }
 

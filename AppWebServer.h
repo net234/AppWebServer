@@ -48,6 +48,29 @@
 //#define D_print(...)    while(0) {  }
 //#define D_println(...)  while(0) {  }
 
+/* Evenements du Manager (voir betaEvents.h)
+  evNill = 0,      // No event
+  ev100Hz,         // tick 100HZ    non cumulative (see betaEvent.h)
+  ev10Hz,          // tick 10HZ     non cumulative (see betaEvent.h)
+  ev1Hz,           // un tick 1HZ   cumulative (see betaEvent.h)
+  ev24H,           // 24H when timestamp pass over 24H
+  //  evDepassement1HZ,
+  evLEDOn,
+  evLEDOff,
+  evInChar,
+  evInString,
+*/
+
+// Liste des evenements specifique WEB
+// TODO: check at compile time if evAwsTrySetup = evWEB
+enum EventCodeWEB_t {
+  // evenement recu
+  evWEBTrySetup = 50,         // A new config setup need to tryed 
+  evWEBTimerEndOfTrySetup,    // Time out for the try
+};
+
+
+
 
 #define SERVER_PORT 80                    // default port for http
 // DNS server

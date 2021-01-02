@@ -42,14 +42,17 @@
 #define APP_VERSION   "AppWebServer Validate V1.1"
 
 #define LED_ON        LOW
+
+
+#include "betaEvents.h"
+EventTracker MyEvent(LED_LIFE);   // instance de eventManager
+
+
 //Objet serveur WEB
 #include  "AppWebServer.h"
 AppWebServer    MyWebServer;
 
 
-#include "betaEvents.h"
-
-EventTracker MyEvent(LED_LIFE);   // instance de eventManager
 
 /* Evenements du Manager (voir betaEvents.h)
   evNill = 0,      // No event
@@ -90,15 +93,13 @@ void setup() {
   Serial.begin(115200);
   Serial.println(F("\r\n\n" APP_VERSION));
 
+  delay(1000);
+
   // Start instance
   MyEvent.begin();
 
   Serial.print(F(" Freemem Start= "));
   Serial.println(ESP.getFreeHeap());
-
-  //  Serial.setDebugOutput(true);  // affichage du debug mode pour webserve
-
-
 
   //  ServeurWeb.WiFiMode = WIFI_STA;  // mode par defaut
   MyWebServer.setCallBack_OnTranslateKey(&on_TranslateKey);

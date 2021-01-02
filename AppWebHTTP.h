@@ -66,6 +66,7 @@ void translateKey(String &key) {
     key = level;
   } else if ( key.equals(F("_SSID_LOCK")) ) {
     key = "&nbsp;";
+    // todo add [#DATA dataname datavalue#] keywork to avoid HTML specific in code like "&#128274;"
     if (WiFi.encryptionType(network[currentLine]) != ENC_TYPE_NONE) key = "&#128274;";  //htmlcode icone cadena
   } else if (onTranslateKeyPtr) {
     (*onTranslateKeyPtr)(key);
@@ -97,9 +98,6 @@ void (*onEndOfRequestPtr)(const String &filename, const String &submitvalue) = N
 
 void onEndOfRequest(const String &filename, const String &submitvalue) {
   
-  // if a coonfig is waiting try it
- if (trySetupPtr) tryConfigWifisetup();
-
   if (onEndOfRequestPtr) (*onEndOfRequestPtr)(filename, submitvalue);
 }
 
@@ -292,6 +290,7 @@ void HTTP_HandleRequests() {
         // uri encode maison :)
         for (int N = 0; N < aKey.length(); N++) {
           char aChar = aKey[N];
+          //TODO:  should I keep " " to "+" conversion ????  save 2 char but oldy
           if (aChar == ' ') {
             answer += '+';
           } else if ( isAlphaNumeric(aChar) ) {
@@ -316,8 +315,7 @@ void HTTP_HandleRequests() {
     Server.setContentLength(answer.length());
     Server.send(200, fileMIME.c_str(), answer);
     //    Serveur.client().stop();
-    //    D_print(answer.length());
-    //    D_println(F(" car."));
+
 
 
     return;
@@ -342,8 +340,7 @@ void HTTP_HandleRequests() {
     }
     Server.send(200, fileMIME.c_str());
     aFile.setTimeout(0);   // to avoid delay at EOF
-    static    char aBuffer[1025];               // static dont overload heap
-    //static    char repeatBuffer[1025];          // static dont overload heap
+    static    char aBuffer[1025];               // static are global so dont overload heap
     String repeatString;
     int  repeatNumber;
     bool repeatActive = false;

@@ -29,8 +29,8 @@
 
 
   problems
-   dhcp dont work on AP with other ip than 192.164.4.1   (not a real problem)
-   unable to save in wifi flash config another AP ip than 192.164.4.1  (not a real problem)
+   dhcp dont work on AP with other ip than 192.164.4.1   (fixed on 12/2020)
+   unable to save in wifi flash config another AP ip than 192.164.4.1  (normal : ip not saved in flash  fixed by saving in .conf)
    mdns doesnt respond on AP   (fixed 06/12/2020)
 
 
@@ -39,8 +39,10 @@
 
 
 // Scan les reseaux wifi le fill up des page comportant un arg appweb=show_wifi
-//#define MAXNETWORK 30
-const uint8_t MAXNETWORK = 30;
+#define MAXNETWORK 30
+//const uint8_t MAXNETWORK = 30;
+#define DELAY_TRYWIFISETUP   30
+
 
 int network[MAXNETWORK + 1];
 int networkSize = 0;
@@ -80,7 +82,7 @@ void scanNetwork() {
 
 // reset wifi mode as it was before scan network
 void closeScanNetwork() {
-  WiFi.scanDelete();
+  WiFi.scanDelete();  // free some memory
   D_print(F("Scan network END Freemem = "));
   D_println(ESP.getFreeHeap());
   //  if (!WiFi.getPersistent()) {
@@ -103,16 +105,23 @@ bool repeatLineScanNetwork(const int num) {
   return (result);
 }
 
+
+////////////////// TrySSetup ///////////////////////////////
 ///////// gestion du wifisetup/configure.html //////////////
+//
+//  configure.html     soumet un formulaire de configuration
+//        si le formulaire est ok on redirect vers testwifi.html  
+//  testconfig.html    affiche un message d'attente (auto refresh 5 secondes)
+//        quand le trySetup est fini on redirect vers resultat.html   
+//  resultat.html    affiche le resultat (auto refresh 30 seconde vers index.html)
 
 
-//TODO  make a pointed struc to avoid memory lost
 struct trySetup_t {
   String SSID;
   String PASS;
   String oldSSID;
-  String oldPASS;
-  String deviceName;
+  String oldPASS;  // to put back in current config if fail
+  String deviceName;  // to put back in current config if fail
   bool isTrying = false;
 };
 
@@ -148,15 +157,21 @@ void do_appweb_wifisetup() {
   trySetupPtr->PASS = Server.arg(F("PASS"));
   trySetupPtr->PASS.trim();
   trySetupPtr->isTrying = false;
+  //TODO: make a redirectTo(uri) function
   TWS::redirectUri = F("test.html");
-
+  // delay 100ms the trySetup to allow redirect to be done
+  EventManagerPtr->pushDelayEvent(100, evWEBTrySetup);
 
 
 }
 
 ////////////////// gestion de wifisetup/test.html //////////
-// called at the end of display of test page
-void tryConfigWifisetup() {
+
+
+
+/////////////////// specific job for WiFiSetup
+// called on an evWEBTrySetup
+void jobWEBTrySetup() {
   D_println(F("tryConfigWifisetup"));
   if (!trySetupPtr || trySetupPtr->isTrying) return;
   D_println(F("---> start try"));
@@ -164,19 +179,72 @@ void tryConfigWifisetup() {
   // if no wifi configured : WiFi.SSID() == "" we test this wifi
   // if (WiFi.status() == WL_DISCONNECTED || WiFi.status() == WL_IDLE_STATUS) {
   //       //trying to fix connection in progress hanging
-
+  EventManagerPtr->pushDelayEvent(DELAY_TRYWIFISETUP * 1000, evWEBTimerEndOfTrySetup); // should be done in 30 sec
   WiFi.persistent(false);
-//  ETS_UART_INTR_DISABLE();
-//  wifi_station_disconnect();
-//  ETS_UART_INTR_ENABLE();  
-  WiFi.enableSTA(false);
+  //  ETS_UART_INTR_DISABLE();
+  //  wifi_station_disconnect();
+  //  ETS_UART_INTR_ENABLE();
+  WiFi.enableSTA(false); // to force a save of config in WiFi module
   D_print(F("WIFI begin result="));
   //WiFi.begin(ssid, password, channel, bssid, connect)
   bool result = WiFi.begin(trySetupPtr->SSID, trySetupPtr->PASS); //,0,NULL,true);
   D_print(result);
   //WiFi.persistent(true);
+}
 
 
-  
+void jobWEBTrySetupValidate() {
+
+  if (trySetupPtr && trySetupPtr->isTrying ) {
+
+    WiFi.enableSTA(false);
+    WiFi.persistent(true);
+    D1_println(F("WF: Moving to STATION"));
+    WiFi.enableAP(false);    // stop AP
+    WiFi.begin(trySetupPtr->SSID, trySetupPtr->PASS);  // save STATION setup in flash
+
+
+
+    if ( trySetupPtr->deviceName != AppWebPtr->_deviceName) {
+      D_print(F("SW: need to init WiFi same as new config   !!!!! "));
+      D_print(trySetupPtr->deviceName);
+      D_print(F("!="));
+      D_println(AppWebPtr->_deviceName);
+      AppWebPtr->setDeviceName(trySetupPtr->deviceName);  //check devicename validity
+      WiFi.softAP(AppWebPtr->_deviceName);   // save in flash
+      if (TWConfig.deviceName != WiFi.softAPSSID()) {
+        D_print(F("SW: need to need to rewrite flah config   !!!!! "));
+        D_print(TWConfig.deviceName);
+        D_print(F("!="));
+        D_println(WiFi.softAPSSID());
+        TWConfig.deviceName = WiFi.softAPSSID();  //put back devicename in config if needed
+        TWConfig.changed = true;
+        TWConfig.save();
+      }
+      WiFi.enableAP(false);    // stop AP config is done
+    }
+
+    delete trySetupPtr;
+    trySetupPtr = nullptr;
+
+  }
+}
+
+
+void jobWEBTrySetupAbort() {
+  if (trySetupPtr) {
+    // bad password or time out
+    D1_println(F("TrySetup Abort"));
+    D_println(F("Remove try config"));
+    //set back old credential if any
+    if (trySetupPtr->SSID.length() > 0) {
+      WiFi.enableSTA(false);
+      WiFi.begin(trySetupPtr->oldSSID, trySetupPtr->oldPASS);  // put back STA old credential if any
+    }
+    WiFi.persistent(true);
+    delete trySetupPtr;
+    trySetupPtr = nullptr;
+
+  }
 
 }
