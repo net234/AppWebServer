@@ -95,7 +95,7 @@ void closeScanNetwork() {
 
 //gestion du repeat line specifique "APPWEB_SCANSETWORK"
 bool repeatLineScanNetwork(const int num) {
-  if ( !Server.arg(F("appweb")).equals(F("show_wifi")) ) return (false);
+  if ( !Server.arg(F("submit")).equals(F("scanWiFi")) ) return (false);
   currentLine = num;
   D_print(F("Scan network Freemem = "));
   D_println(ESP.getFreeHeap());
@@ -108,13 +108,15 @@ bool repeatLineScanNetwork(const int num) {
 
 ////////////////// TrySSetup ///////////////////////////////
 ///////// gestion du wifisetup/configure.html //////////////
+//  index.html         choix des pages de configuration  (auto refresh 30 seconde vers /index.html)
 //
-//  configure.html     soumet un formulaire de configuration
-//        si le formulaire est ok on redirect vers testwifi.html  
-//  testconfig.html    affiche un message d'attente (auto refresh 5 secondes)
+//  configure.html     soumet un formulaire de configuration  (auto refresh 30 seconde vers index.html)
+//        si le formulaire est ok on redirect vers message.html  
+//  message.html    affiche un message d'attente (auto refresh 5 secondes)
 //        quand le trySetup est fini on redirect vers resultat.html   
 //  resultat.html    affiche le resultat (auto refresh 30 seconde vers index.html)
-
+//
+//
 
 struct trySetup_t {
   String SSID;
@@ -131,7 +133,7 @@ trySetup_t* trySetupPtr = nullptr; // a pointer to tryconf
 // gestion du submit appweb_wifisetup
 void do_appweb_wifisetup() {
   // check if form if valid
-  String aSSID = Server.arg(F("SSID"));
+  String aSSID = Server.arg(F("STATION_SSID"));
   aSSID.trim();
   if (aSSID.length() <= 2 && aSSID.length() > 30) {
     return;
@@ -158,13 +160,24 @@ void do_appweb_wifisetup() {
   trySetupPtr->PASS.trim();
   trySetupPtr->isTrying = false;
   //TODO: make a redirectTo(uri) function
-  TWS::redirectUri = F("test.html");
+  AppWebPtr->ACTION_TITLE=F("WiFiSetup");
+  AppWebPtr->ACTION_NAME =  F("Connection au WiFi ");
+  AppWebPtr->ACTION_NAME += aSSID;
+  AppWebPtr->ACTION_TEXT =  F("...");
+  TWS::redirectUri = F("message.html");
   // delay 100ms the trySetup to allow redirect to be done
   EventManagerPtr->pushDelayEvent(100, evWEBTrySetup);
-
-
 }
 
+// gestion du submit appweb_reset
+void do_appweb_reset() {
+  AppWebPtr->ACTION_TITLE=F("Reset");
+  AppWebPtr->ACTION_NAME =  F("Reset");
+  AppWebPtr->ACTION_TEXT =  "";
+  TWS::redirectUri = F("message.html");
+  // delay 100ms the reset to allow redirect to be done
+  EventManagerPtr->pushDelayEvent(100, evWEBDoReset);  
+}
 ////////////////// gestion de wifisetup/test.html //////////
 
 

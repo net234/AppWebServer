@@ -26,45 +26,54 @@
 //pointer du traducteur de Key
 void (*onTranslateKeyPtr)(String &key) = NULL;
 
-//todo start all internal key with "_" to skip them faster
+//TODO: skip all this for lowercase first letter
+//TODO; change RANDOM with a PAGEID stuff
 void translateKey(String &key) {
-  if ( key.equals(F("_CHIP_ID")) ) {
-    key = ESP.getChipId();
-  } else if ( key.equals(F("_NEW_RANDOM")) ) {
-    key = AppWebPtr->createRandom();
-  } else if ( key.equals(F("_RANDOM")) ) {
-    key = AppWebPtr->_random;
-  } else if ( key.equals(F("_FLASH_CHIP_ID")) ) {
-    key = ESP.getFlashChipId();
-  } else if ( key.equals(F("_IDE_FLASH_SIZE")) ) {
-    key = ESP.getFlashChipSize();
-  } else if ( key.equals(F("_REAL_FLASH_SIZE")) ) {
-    key = ESP.getFlashChipRealSize();
-  } else if ( key.equals(F("_SOFTAP_IP")) ) {
-    key = WiFi.softAPIP().toString();
-  } else if ( key.equals(F("_SOFTAP_MAC")) ) {
-    key = WiFi.softAPmacAddress();
-  } else if ( key.equals(F("_STATION_IP")) ) {
-    key = TWS::localIp;
-  } else if ( key.equals(F("_STATION_SSID")) ) {
-    key = WiFi.SSID();
-  } else if ( key.equals(F("_TRY_SSID")) ) {
-    if (trySetupPtr) key = trySetupPtr->SSID;
-  } else if ( key.equals(F("_TRY_STATUS")) ) {
-    key = TWS::TryStatus;
-  } else if ( key.equals(F("_HOSTNAME")) ) {
+  if ( key.equals(F("HOSTNAME")) ) {
     key =  TWConfig.deviceName;
-  } else if ( key.equals(F("_STATION_MAC")) ) {
+  } else if ( key.equals(F("ACTION_TITLE")) ) {
+    key = AppWebPtr->ACTION_TITLE;
+  } else if ( key.equals(F("ACTION_NAME")) ) {
+    key = AppWebPtr->ACTION_NAME;
+  } else if ( key.equals(F("ACTION_TEXT")) ) {
+    key = AppWebPtr->ACTION_TEXT;
+  } else if ( key.equals(F("CHIP_ID")) ) {
+    key = ESP.getChipId();
+  } else if ( key.equals(F("NEW_RANDOM")) ) {
+    key = AppWebPtr->createRandom();
+  } else if ( key.equals(F("RANDOM")) ) {
+    key = AppWebPtr->_random;
+  } else if ( key.equals(F("FLASH_CHIP_ID")) ) {
+    key = ESP.getFlashChipId();
+  } else if ( key.equals(F("IDE_FLASH_SIZE")) ) {
+    key = ESP.getFlashChipSize();
+  } else if ( key.equals(F("REAL_FLASH_SIZE")) ) {
+    key = ESP.getFlashChipRealSize();
+  } else if ( key.equals(F("SOFTAP_IP")) ) {   // TODO: show actual or programed IP ? may be add OFF or ON behind IP
+    key = WiFi.softAPIP().toString();
+  } else if ( key.equals(F("SOFTAP_SSID")) ) {
+    key = WiFi.softAPSSID();
+  } else if ( key.equals(F("SOFTAP_MAC")) ) {
+    key = WiFi.softAPmacAddress();
+  } else if ( key.equals(F("STATION_IP")) ) {   // TODO: show actual or programed IP ? may be add OFF or ON behind IP
+    key = TWS::localIp;
+  } else if ( key.equals(F("STATION_SSID")) ) {
+    key = WiFi.SSID();
+  } else if ( key.equals(F("TRY_SSID")) ) {
+    if (trySetupPtr) key = trySetupPtr->SSID;
+  } else if ( key.equals(F("TRY_STATUS")) ) {
+    key = TWS::TryStatus;
+  } else if ( key.equals(F("STATION_MAC")) ) {
     key = WiFi.macAddress();
 
     //specific wifisetuo
-  } else if ( key.equals(F("_SSID_NAME")) ) {
+  } else if ( key.equals(F("WIFISETUP_SSID_NAME")) ) {
     key = WiFi.SSID(network[currentLine]);
-  } else if ( key.equals(F("_SSID_LEVEL")) ) {
+  } else if ( key.equals(F("WIFISETUP_SSID_LEVEL")) ) {
     int level = RSSIdbToPercent(network[currentLine]);
     if (level > 100) level = 100;
     key = level;
-  } else if ( key.equals(F("_SSID_LOCK")) ) {
+  } else if ( key.equals(F("WIFISETUP_SSID_LOCKED")) ) {
     key = "&nbsp;";
     // todo add [#DATA dataname datavalue#] keywork to avoid HTML specific in code like "&#128274;"
     if (WiFi.encryptionType(network[currentLine]) != ENC_TYPE_NONE) key = "&#128274;";  //htmlcode icone cadena
@@ -82,12 +91,13 @@ void (*onStartRequestPtr)(const String &filename, const String &submitvalue) = N
 
 void onStartRequest(const String &filename, const String &submitvalue) {
 
-  // track "form appweb_wifisetup" qui retoune SSID PASS et HOSTNAME eq deviceName
-  String aString = F("appweb_wifisetup_");
-  aString += AppWebPtr->_random;
-  if (&submitvalue && submitvalue.equals(aString) ) {
-    do_appweb_wifisetup();
-    return;
+  // track "appweb_xxxxx_[#PAGEID#]" submit
+  if (&submitvalue && submitvalue.startsWith(F("appweb_")) && submitvalue.endsWith(AppWebPtr->_random) ) {
+    if ( submitvalue.startsWith(F("appweb_wifisetup_")) ) {
+      do_appweb_wifisetup();
+    } else if ( submitvalue.startsWith(F("appweb_reset_")) ) { 
+      do_appweb_reset();
+    }
   }
   if (onStartRequestPtr) (*onStartRequestPtr)(filename, submitvalue);
 }
@@ -117,7 +127,7 @@ bool (*onRepeatLinePtr)(const String &repeatname, const int num) = NULL;
 bool onRepeatLine(const String &repeatname, const int num) {
   D_print(F("WEB: got a repeat ")); D_print(repeatname);
   D_print(F(" num=")); D_println(num);
-  if ( repeatname.equals(F("_WIFI")) ) return repeatLineScanNetwork(num);
+  if ( repeatname.equals(F("WIFISETUP_LIST")) ) return repeatLineScanNetwork(num);
   if (onRepeatLinePtr) return (*onRepeatLinePtr)(repeatname, num);
   D_println(F("WEB: repeat not catched "));
   return (false);

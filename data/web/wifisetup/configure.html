@@ -1,25 +1,26 @@
 <!DOCTYPE html><html lang="en">
 <head>
 <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1, user-scalable=no"/>
+<meta http-equiv="refresh" content="300;url=index.html" />
 <title>Wifi Setup</title>
-<link rel="stylesheet" type="text/css" href="setup.css"/>
+<link rel="stylesheet" type="text/css" href="wifisetup.css"/>
 <script>function c(l){document.getElementById('s').value=l.innerHTML;document.getElementById('p').focus();}</script>
 <style>html { text-align: center;}</style> 
 </head>
 <body>
-<h1>[# _HOSTNAME #]</h1>
+<h1>[# HOSTNAME #]</h1>
 <h3>WiFiManager</h3>
 <table>
-[#REPEAT_LINE _WIFI#]<tr><td class='left'><a class='ssid' href='#' onclick='c(this)'>[#_SSID_NAME#]</a></td><td class='right'>[#_SSID_LEVEL#]% &#x1f4f6;</td><td>[#_SSID_LOCK#]</td></tr>
+[#REPEAT_LINE WIFISETUP_LIST#]<tr><td class='left'><a class='ssid' href='#' onclick='c(this)'>[#WIFISETUP_SSID_NAME#]</a></td><td class='right'>[#WIFISETUP_SSID_LEVEL#]% &#x1f4f6;</td><td>[#WIFISETUP_SSID_LOCKED#]</td></tr>
 </table>
 <br>
 <form method="post">
 <table> 
-<tr><td class="right">SSID</td><td><input id="s" type="text" placeholder="SSID" name="SSID" maxlength="25" value="[# _STATION_SSID #]" required="required"/></td></tr>
+<tr><td class="right">WiFi SSID</td><td><input id="s" type="text" placeholder="nom du WiFi" name="STATION_SSID" maxlength="25" value="[# STATION_SSID #]" required="required"/></td></tr>
 <tr><td class="right">Password</td><td><input id="p" type="password"  placeholder="Password" name="PASS" maxlength="25" value="" required="required"/></td></tr>
-<tr><td class="right">Device</td><td><input type="text"  placeholder="Device" name="HOSTNAME" maxlength="25" value="[# _HOSTNAME #]" required="required"/></td></tr>
+<tr><td class="right">Device</td><td><input type="text"  placeholder="Device" name="HOSTNAME" maxlength="25" value="[# HOSTNAME #]" required="required"/></td></tr>
 </table>
-<p><button class="button" type="submit" name="submit" value="appweb_wifisetup_[#_NEW_RANDOM#]" >Save</button></p>
+<p><button class="button" type="submit" name="submit" value="appweb_wifisetup_[#NEW_RANDOM#]" >Save</button></p>
 </form>
 <h3><a class="nodeco" href="index.html">[# APP_VERSION #]</a></h3>
 </body>

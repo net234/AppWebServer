@@ -203,6 +203,7 @@ void AppWebServer::setDeviceName(const String devicename) {
     _deviceName += WiFi.macAddress().substring(15, 17);
   }
   _deviceName.replace(' ', '_');
+  _deviceName.replace('.', '_'); // "." not ok with mDNS
 }
 
 

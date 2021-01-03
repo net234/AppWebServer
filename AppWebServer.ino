@@ -28,6 +28,8 @@
    V1.0.1  Add interactive js
    V1.0.2  Stand alone captive portal
 
+   BUG:  refresh stay a 1000 (after auto refresh from wifisetup)
+
 **********************************************************************************/
 
 
@@ -76,7 +78,6 @@ enum tUserEventCode {
   evBP0LongDown,      // BP0 est maintenus appuyé plus de 3 secondes
   evBP0LongUp,        // BP0 est relaché plus de 1 secondes
   // evenement action
-  doReset,
 };
 
 
@@ -183,7 +184,7 @@ void loop() {
       Serial.println(F("BP0 Long Down"));
       if (multi == 5) {
         Serial.println(F("RESET"));
-        MyEvent.pushEvent(doReset);
+        MyEvent.pushEvent(evWEBDoReset);
       }
       break;
 
@@ -200,7 +201,8 @@ void loop() {
       break;
 
 
-    case doReset:
+    case evWEBDoReset:
+      Serial.print(F("Reset requested by user"));
       delay(100);
 #ifdef  __AVR__
       wdt_enable(WDTO_120MS);
@@ -254,7 +256,7 @@ void loop() {
 
       if (MyEvent.inputString.equals(F("RESET"))) {
         Serial.println(F("RESET"));
-        MyEvent.pushEvent(doReset);
+        MyEvent.pushEvent(evWEBDoReset);
       }
 
       if (MyEvent.inputString.equals(F("WIFIOFF"))) {

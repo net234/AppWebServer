@@ -67,6 +67,7 @@ enum EventCodeWEB_t {
   // evenement recu
   evWEBTrySetup = 50,         // A new config setup need to tryed 
   evWEBTimerEndOfTrySetup,    // Time out for the try
+  evWEBDoReset,
 };
 
 
@@ -124,7 +125,11 @@ class AppWebServer {
     //    String getArg(const String argName);
     //    String currentUri();                            // return the last requested URI (actual page in calllback)
     //    // var
-
+    // PRESET ACTION KEY
+    String ACTION_TITLE;  // default [#ACTION_TITLE#] key replacement
+    String ACTION_NAME;   // default [#ACTION_NAME#] key replacement
+    String ACTION_TEXT;   // default [#ACTION_TEXT#] key replacement
+    
     // TODO: a passer en private
     String  _deviceName;             // AP Name  amd  mDns Name in station mode
     String  _defaultWebFolder;       // Web base Path for non captive move
