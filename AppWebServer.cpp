@@ -59,13 +59,12 @@ using namespace TWS;
 //TODO: cant Serial.print here    should throw a system error
 AppWebServer::AppWebServer() {
   if (AppWebPtr != nullptr) {
-    D1_print(F("Error: Only one instance for AppWebServer"));
-    while (true) delay(100);
+    _error = 998;
   }
   if (EventManagerPtr == nullptr) {
-    D1_print(F("Error: Missing instance of BetaEvents object"));
-    while (true) delay(100);
+    _error = 997;
   }
+  _error = 0;
   AppWebPtr = this;
 }
 // Destructor

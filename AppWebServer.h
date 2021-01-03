@@ -41,12 +41,18 @@
 //#include "ESP8266.h"
 #include <ESP8266WiFi.h>
 
-#define D_print    Serial.print
-#define D_println  Serial.println
+//#ifndef EventManagerPtr
+//#error BetaEvents.h is missing in yous sketch !!!!
+//#endif
+
+
+
+//#define D_print    Serial.print
+//#define D_println  Serial.println
 #define D1_print    Serial.print
 #define D1_println  Serial.println
-//#define D_print(...)    while(0) {  }
-//#define D_println(...)  while(0) {  }
+#define D_print(...)    while(0) {  }
+#define D_println(...)  while(0) {  }
 
 /* Evenements du Manager (voir betaEvents.h)
   evNill = 0,      // No event
@@ -138,7 +144,8 @@ class AppWebServer {
     String  _random;                 // random number changed on each request without submit  TODO: finish this
     // String  page_id;
     bool _captivePortalActive = false;
-    int _portalTimeoutInSeconds = 60;
+    int16_t _portalTimeoutInSeconds = 60;
+    int16_t _error = 999;
 
   private:
 

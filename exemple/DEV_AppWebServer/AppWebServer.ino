@@ -48,6 +48,7 @@
 #define LED_ON        LOW
 
 
+//Objet event handler
 #include "betaEvents.h"
 EventTracker MyEvent(LED_LIFE);   // instance de eventManager
 

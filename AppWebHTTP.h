@@ -106,6 +106,7 @@ void onStartRequest(const String &filename, const String &submitvalue) {
       D_print(F("WEB: Unknow appweb_ submit"));
     }
   }
+  // TODO: this is realy messy
   // track "appweb_message"    request with no message
   if ( AppWebPtr->PAGENAME.startsWith(F("appweb_message")) ) {
     if (AppWebPtr->ACTION_TITLE.length() == 0 ) AppWebPtr->ACTION_redirect = F("/index.html");
