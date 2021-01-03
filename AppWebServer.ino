@@ -28,8 +28,10 @@
    V1.0.1  Add interactive js
    V1.0.2  Stand alone captive portal
 
-   BUG:  refresh stay a 1000 (after auto refresh from wifisetup)
-
+   TODO:  refresh stay a 1000 (after auto refresh from wifisetup)
+   TODO: mode AP permanent with no capture
+   TODO: better use of ACTION/Message Page
+   TODO: better deal with new random / random
 **********************************************************************************/
 
 
@@ -69,6 +71,16 @@ AppWebServer    MyWebServer;
   evInString,
 */
 
+/* Liste des evenements specifique WEB
+  // evenement recu
+  evWEBTrySetup = 50,         // A new config setup need to tryed
+  evWEBTimerEndOfTrySetup,    // Time out for the try
+  evWEBDoReset,               // Reset requested by the user
+*/
+
+
+
+
 // Liste des evenements specifique a ce projet
 enum tUserEventCode {
   // evenement recu
@@ -100,7 +112,7 @@ void setup() {
   MyEvent.begin();
 
   Serial.print(F(" Freemem Start= "));
-  Serial.println(ESP.getFreeHeap());
+  Serial.println(MyEvent.freeRam());
 
   //  ServeurWeb.WiFiMode = WIFI_STA;  // mode par defaut
   MyWebServer.setCallBack_OnTranslateKey(&on_TranslateKey);
@@ -121,7 +133,7 @@ void setup() {
 
 
 
-  refFreeMem = ESP.getFreeHeap();
+  refFreeMem = MyEvent.freeRam();
   Serial.print(F(" Freemem Ref= "));
   Serial.println(refFreeMem);
 
@@ -157,10 +169,13 @@ void loop() {
     case ev1Hz:
       if (trackMem) {
         Serial.print(F(" Freemem = "));
-        Serial.print(ESP.getFreeHeap());
+        Serial.print(MyEvent.freeRam());
         Serial.print(F(" / "));
-        Serial.println( refFreeMem - ESP.getFreeHeap() );
-
+        Serial.print( refFreeMem - MyEvent.freeRam() );
+        Serial.print(F(" Max block = "));
+        Serial.print(ESP.getMaxFreeBlockSize());
+        Serial.print(F(" Frag = "));
+        Serial.println(ESP.getHeapFragmentation());
       }
       break;
 
@@ -182,6 +197,11 @@ void loop() {
 
     case evBP0LongDown:
       Serial.println(F("BP0 Long Down"));
+      if (multi == 2) {
+        Serial.println(F("OPEN AP"));
+        MyWebServer.startCaptivePortal(60);
+      }
+
       if (multi == 5) {
         Serial.println(F("RESET"));
         MyEvent.pushEvent(evWEBDoReset);
@@ -284,7 +304,7 @@ void loop() {
         Serial.println("Start AP");
         WiFi.softAP(MyWebServer._deviceName);
       }
-
+      // TODO: a full raz config
       if (MyEvent.inputString.equals(F("RAZCONFIG"))) {
         Serial.println("raz config file");
         MyWebServer.razConfig();

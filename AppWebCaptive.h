@@ -23,16 +23,10 @@
 */
 
 
-
+// TODO: put back this in appWebServer.ccp
 // ============   tools to handle captive portal  ============
-
-//bool softAPRequested = false;
-//bool softAP = false;            //Captive portal active
+// Captive DNS follow WiFiGetmode  in web handle event
 bool captiveDNS = false;               //Captive portal DNS active
-//bool rootWifiSetup = false;             //Specific for CaptivePortal WifiSetup hold in a sub repertory
-unsigned long timerCaptivePortal;        //Used to timeout Captive portaln in second
-//unsigned long timerCaptiveDNS;         //Used to reactive captive portal DNS
-//unsigned long timerWiFiStop = 0;       //Force a WiFi stop in 2,5 sec
 
 
 
@@ -45,7 +39,7 @@ void   captiveDNSStart() {
     D1_println(F("DNS: Captive DNS erreur !!!!"));
   }
   //wifi_softap_dhcps_stop();
-  wifi_softap_dhcps_start();
+  //wifi_softap_dhcps_start();  TODO: validate if we need to restart dhcp
   captiveDNS = true;
 }
 
@@ -54,37 +48,35 @@ void captiveDNSStop() {
   D_println(F("DNS: Captive DNS OFF"));
   dnsServer.stop();
   captiveDNS = false;
-  // rearme le timerCaptiveDNS
-  //timerCaptiveDNS = millis();
 }
 
-void handleCaptivePortal() {
-  //#define DELAY_NOVALIDPAGE 1U * 60 * 1000
-  //#define CAPTIVEPORTAL_TIMEOUT  2U * 60 * 1000
-
-  static uint32_t prevMillis = millis();
-  if (millis() - prevMillis >= 1000) {
-    prevMillis += 1000;
-
-    if (timerCaptivePortal) {
-      //D_println(timerCaptivePortal);
-      if (--timerCaptivePortal == 0) {
-        captiveDNSStop();
-        WiFi.enableAP(false);  // desable AP
-      }
-    }
-  }
-  //  if (softAP && millis() - timerCaptivePortal > CAPTIVEPORTAL_TIMEOUT) {
-  //    if (miniServerPtr) miniServerPtr->configureWiFi(false);  //Stop captive
-  //    WiFi.begin();
-  //    return;
-  //  }
-  // if no request arrived we rearm captive DNS
-  //  if (!captiveDNS && millis() - timerCaptiveDNS > DELAY_NOVALIDPAGE) {
-  //    captiveDNSStart();
-  //  }
-  if (captiveDNS) dnsServer.processNextRequest();
-}
+//void handleCaptivePortal() {
+//  //#define DELAY_NOVALIDPAGE 1U * 60 * 1000
+//  //#define CAPTIVEPORTAL_TIMEOUT  2U * 60 * 1000
+//
+//  static uint32_t prevMillis = millis();
+//  if (millis() - prevMillis >= 1000) {
+//    prevMillis += 1000;
+//
+//    if (timerCaptivePortal) {
+//      //D_println(timerCaptivePortal);
+//      if (--timerCaptivePortal == 0) {
+//        captiveDNSStop();
+//        WiFi.enableAP(false);  // desable AP
+//      }
+//    }
+//  }
+//  //  if (softAP && millis() - timerCaptivePortal > CAPTIVEPORTAL_TIMEOUT) {
+//  //    if (miniServerPtr) miniServerPtr->configureWiFi(false);  //Stop captive
+//  //    WiFi.begin();
+//  //    return;
+//  //  }
+//  // if no request arrived we rearm captive DNS
+//  //  if (!captiveDNS && millis() - timerCaptiveDNS > DELAY_NOVALIDPAGE) {
+//  //    captiveDNSStart();
+//  //  }
+//  if (captiveDNS) dnsServer.processNextRequest();
+//}
 
 //bool    newConfigTry = false;
 //bool    newConfigValide = false;

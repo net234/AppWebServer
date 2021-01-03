@@ -211,11 +211,14 @@ void jobWEBTrySetup() {
 void jobWEBTrySetupValidate() {
 
   if (trySetupPtr && trySetupPtr->isTrying ) {
-
+    EventManagerPtr->removeDelayEvent(evWEBTimerEndOfTrySetup);
+    D1_println(F("WF: Moving to STATION"));
     WiFi.enableSTA(false);
     WiFi.persistent(true);
-    D1_println(F("WF: Moving to STATION"));
-    WiFi.enableAP(false);    // stop AP
+    //WiFi.enableAP(false);    // AP will be stop with evWEBTimerEndOfCaptive
+    // stop captive in 2 sec if needed
+    if (AppWebPtr->_captivePortalActive) EventManagerPtr->pushDelayEvent(2000, evWEBTimerEndOfCaptive);
+
     WiFi.begin(trySetupPtr->SSID, trySetupPtr->PASS);  // save STATION setup in flash
 
 
@@ -236,12 +239,9 @@ void jobWEBTrySetupValidate() {
         TWConfig.changed = true;
         TWConfig.save();
       }
-      WiFi.enableAP(false);    // stop AP config is done
-//      AppWebPtr->ACTION_redirect = "http://";
-//      AppWebPtr->ACTION_redirect += TWConfig.deviceName;
-//      AppWebPtr->ACTION_redirect += ".local";
+
     }
-    
+
     AppWebPtr->ACTION_redirect = F("resultat.html");
     AppWebPtr->ACTION_TITLE = F("WiFiSetup");
     AppWebPtr->ACTION_NAME =  F("Connection au WiFi ");
@@ -266,8 +266,8 @@ void jobWEBTrySetupAbort() {
       WiFi.begin(trySetupPtr->oldSSID, trySetupPtr->oldPASS);  // put back STA old credential if any
     }
     WiFi.persistent(true);
-    
-    
+
+
     AppWebPtr->ACTION_redirect = F("resultat.html");
     AppWebPtr->ACTION_TITLE = F("WiFiSetup");
     AppWebPtr->ACTION_NAME =  F("Connection au WiFi ");

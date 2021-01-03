@@ -138,13 +138,9 @@ void AppWebServer::begin(const String devicename , const int debuglevel  ) {
     WiFi.persistent(true);
   }
 
-  if ( TWConfig.bootForceAP > 0 && !(WiFi.getMode() & WIFI_AP) ) {
-    D_println(F("TWS: Force mode Captive AP !!!"));
-    WiFi.persistent(false);  // to go back on initial mode in case of reset
-    WiFi.enableAP(true);   // wifi est non persistant
-    WiFi.persistent(true);
-    timerCaptivePortal = TWConfig.bootForceAP * 60;
-  }
+  // TODO: deal correctly with AP non captive !!!!!
+  _captivePortalActive = WiFi.getMode() & WIFI_AP;
+
 
   _deviceName = WiFi.softAPSSID();              //device name from WiFi
   //TODO: revoir les persistant true/false au boot
@@ -161,6 +157,13 @@ void AppWebServer::begin(const String devicename , const int debuglevel  ) {
       TWConfig.save();
     }
   }
+
+  if ( TWConfig.bootForceAP > 0 && !(WiFi.getMode() & WIFI_AP) ) {
+    D1_println(F("WEB: Force mode Captive AP !!!"));
+    startCaptivePortal(60);
+  }
+
+
   D_print(F("TW: softap="));
   D_println(WiFi.softAPSSID());
   // mise en place des call back web
@@ -215,10 +218,14 @@ void AppWebServer::handleEvent() {
     case evNill: break;
     case evWEBTrySetup:              jobWEBTrySetup(); break;          // A new config setup need to try
     case evWEBTimerEndOfTrySetup:
-      D1_print(F("WS: TrySetup Abort : timeout"));
+      D_print(F("WIF: : timeout TrySetup Station "));
       jobWEBTrySetupAbort();
-
       break;     // Abort try setup (time out)
+
+    case evWEBTimerEndOfCaptive:
+    D_print(F("WIF: timeout Captive portal"));
+      stopCaptivePortal();
+      break;
   }
 
   // Check if mode changed
@@ -226,9 +233,9 @@ void AppWebServer::handleEvent() {
   if (  _WiFiMode != wifimode) {
     _WiFiMode = wifimode;
     // grab WiFi actual mode
-    D1_print(F("WF: Wifi mode change to "));
+    D1_print(F("WIF: --->Wifi mode change to "));
     D1_println(_WiFiMode);
-    D_println(F("SW: Read wifi current mode and config "));
+    D_println(F("WIF: Read wifi current mode and config "));
     D_print(F("SW: SoftAP SSID "));
     D_println(WiFi.softAPSSID());
     D_print(F("SW: SoftAP IP "));
@@ -277,7 +284,7 @@ void AppWebServer::handleEvent() {
     //  ETS_UART_INTR_DISABLE();
     //  WiFi.disconnect(); //  this alone is not enough to stop the autoconnecter
     //  ETS_UART_INTR_ENABLE();
-    D_println(F("SW: -- end Wifi mode change"));
+    D_println(F("WIF: -- end Wifi mode change"));
   }
 
 
@@ -333,13 +340,9 @@ void AppWebServer::handleEvent() {
     if (trySetupPtr && status == WL_CONNECT_FAILED ) jobWEBTrySetupAbort();
 
   }
-
-
-  MDNS.update();
   Server.handleClient();
-  handleCaptivePortal();
-
-
+  if (captiveDNS) dnsServer.processNextRequest();
+  MDNS.update();
 }
 
 String AppWebServer::getWebName() {
@@ -359,11 +362,11 @@ void AppWebServer::setCallBack_OnStartRequest(void (*onstartrequest)(const Strin
 void AppWebServer::setCallBack_OnRefreshItem(bool (*onrefreshitem)(const String & keyname, String & key)) {
   onRefreshItemPtr = onrefreshitem;
 }
-//
-//
-//void AppWebServer::setCallBack_OnRepeatLine(bool (*onrepeatline)(const int num)) {     // call back pour gerer les Repeat
-//  onRepeatLinePtr = onrepeatline;
-//}
+
+
+void AppWebServer::setCallBack_OnRepeatLine(bool (*onrepeatline)(const String &keyname, const int num)) {     // call back pour gerer les Repeat
+  onRepeatLinePtr = onrepeatline;
+}
 
 bool AppWebServer::razConfig() {                             // efface la config enregistree
   return (TWConfig.erase());
@@ -371,5 +374,28 @@ bool AppWebServer::razConfig() {                             // efface la config
 
 String AppWebServer::createRandom() {
   _random = random(1000000, 9999999);
+  D_print(F("WEB: New random "));
+  D_println(_random);
   return (_random);
+}
+
+// TODO: pass all this stuff with persitent(false) as default !!!!!
+// TODO: give result back
+void   AppWebServer::startCaptivePortal(const int timeoutInSeconds) {
+  _portalTimeoutInSeconds = timeoutInSeconds;
+  EventManagerPtr->pushDelayEvent(_portalTimeoutInSeconds * 1000, evWEBTimerEndOfCaptive);
+  WiFi.persistent(false);  // to go back on initial mode in case of reset
+  WiFi.enableAP(true);   // wifi est non persistant
+  WiFi.persistent(true);
+  _captivePortalActive = true;
+  D1_println(F("WEB: Active captivePortal"));
+}
+
+void   AppWebServer::stopCaptivePortal() {
+  EventManagerPtr->removeDelayEvent(evWEBTimerEndOfCaptive);
+  captiveDNSStop();  // just in case
+  WiFi.persistent(true);
+  WiFi.enableAP(false);   // wifi est non persistant
+  _captivePortalActive = false;
+  D1_println(F("WEB: stop captivePortal"));
 }

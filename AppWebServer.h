@@ -28,11 +28,11 @@
    V1.0.3  1/12/2020  rewriting
 
 
-  problems
+  TODO:
    dhcp dont work on AP with other ip than 192.164.4.1   (not a real problem)
    unable to save in wifi flash config another AP ip than 192.164.4.1  (not a real problem)
    mdns doesnt respond on AP   (fixed 06/12/2020)
-
+   pass all this stuff with persitent(false) as default !!!!!
 
 **********/
 
@@ -65,8 +65,9 @@
 // TODO: check at compile time if evAwsTrySetup = evWEB
 enum EventCodeWEB_t {
   // evenement recu
-  evWEBTrySetup = 50,         // A new config setup need to tryed 
+  evWEBTrySetup = 50,         // A new config setup need to tryed
   evWEBTimerEndOfTrySetup,    // Time out for the try
+  evWEBTimerEndOfCaptive,     // Timer to stop captive
   evWEBDoReset,
 };
 
@@ -87,11 +88,6 @@ enum EventCodeWEB_t {
 //} WiFiMode_t;
 
 
-//Fonction WiFi.utilisée
-//enableSTA()
-//enableAP()
-//getMode()
-
 
 // Main Object limited to one instance
 class AppWebServer {
@@ -109,7 +105,8 @@ class AppWebServer {
     //    TW_WiFiStatus_t  getWiFiStatus();                  // Wifi Status is scanned during handleClient()
     void setDeviceName(const String devicename);
     String createRandom();                                   // create a new random string in _random
-    //void setSTAWiFi(String ssid, String ssidpassword); // setup AP server wifi credential
+    void   startCaptivePortal(const int timeoutInSeconds = 60);                      // create a temporary portal
+    void   stopCaptivePortal();
     //    void configureWiFi(const bool active = false);  // active the AP mode to request wifi credential from the user
     // //   void softAPconnect(const bool active,const bool persistent = false,const char* = NULL);
     //
@@ -120,8 +117,8 @@ class AppWebServer {
     //
     void setCallBack_OnTranslateKey(void (*onTranslateKey)(String &key));  // call back pour Fournir les [# xxxxx #]
     void setCallBack_OnRefreshItem(bool (*onRefreshItem)(const String &keyname, String &key));  // call back pour fournir les class='refresh'
-
-    //    void setCallBack_OnRepeatLine(bool (*onRepeatLine)(const int num));     // call back pour gerer les Repeat
+    void setCallBack_OnRepeatLine(bool (*onRepeatLine)(const String &repeatname, const int num));     // call back pour gerer les Repeat
+    
     //    String getArg(const String argName);
     //    String currentUri();                            // return the last requested URI (actual page in calllback)
     //    // var
@@ -131,7 +128,7 @@ class AppWebServer {
     String ACTION_TITLE;  // default [#ACTION_TITLE#] key replacement
     String ACTION_NAME;   // default [#ACTION_NAME#] key replacement
     String ACTION_TEXT;   // default [#ACTION_TEXT#] key replacement
-    
+
     // TODO: a passer en private
     String  _deviceName;             // AP Name  amd  mDns Name in station mode
     String  _defaultWebFolder;       // Web base Path for non captive move
@@ -140,7 +137,11 @@ class AppWebServer {
     bool    _captiveAP = false;      // used to swith between standard mode
     String  _random;                 // random number changed on each request without submit  TODO: finish this
     // String  page_id;
+    bool _captivePortalActive = false;
+    int _portalTimeoutInSeconds = 60;
+
   private:
+
     byte _debugLevel = 0;  // 0 = none / 1 = minimal / 2 = variable request / 3 = wifi debug (must be set before begin)
     //int16_t _timerCaptiveAP = 0;  // timer limitation du mode AP en seconde
     //    String  _redirectUri;   //  request will be redirected to this URI if set after onRequest call back

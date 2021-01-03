@@ -94,18 +94,25 @@ void (*onStartRequestPtr)(const String &filename, const String &submitvalue) = N
 void onStartRequest(const String &filename, const String &submitvalue) {
 
   // track "appweb_xxxxx_[#PAGEID#]" submit
-  if (&submitvalue && submitvalue.startsWith(F("appweb_")) && submitvalue.endsWith(AppWebPtr->_random) ) {
-    if ( submitvalue.startsWith(F("appweb_wifisetup_")) ) {
+  if ( &submitvalue && submitvalue.startsWith(F("appweb_") ) ) {
+    if (!submitvalue.endsWith(AppWebPtr->_random) ) {
+      D1_print(F("WEB: Bad appweb_ submit "));
+      D1_println(AppWebPtr->_random);
+    } else if ( submitvalue.startsWith(F("appweb_wifisetup_")) ) {
       do_appweb_wifisetup();
     } else if ( submitvalue.startsWith(F("appweb_reset_")) ) {
       do_appweb_reset();
+    } else {
+      D_print(F("WEB: Unknow appweb_ submit"));
     }
   }
   // track "appweb_message"    request with no message
-  if ( AppWebPtr->PAGENAME.startsWith(F("appweb_message")) && AppWebPtr->ACTION_redirect.length() > 0 ) {
+  if ( AppWebPtr->PAGENAME.startsWith(F("appweb_message")) ) {
     if (AppWebPtr->ACTION_TITLE.length() == 0 ) AppWebPtr->ACTION_redirect = F("/index.html");
-    redirectUri = AppWebPtr->ACTION_redirect;
-    AppWebPtr->ACTION_redirect = "";
+    if (AppWebPtr->ACTION_redirect.length() > 0 ) {
+      redirectUri = AppWebPtr->ACTION_redirect;
+      AppWebPtr->ACTION_redirect = "";
+    }
   }
 
   if (onStartRequestPtr) (*onStartRequestPtr)(filename, submitvalue);
@@ -113,9 +120,9 @@ void onStartRequest(const String &filename, const String &submitvalue) {
 
 // onEndOfRequest callback
 //pointer du gestionaire de request
-void (*onEndOfRequestPtr)(const String &filename, const String &submitvalue) = NULL;
+void (*onEndOfRequestPtr)(const String & filename, const String & submitvalue) = NULL;
 
-void onEndOfRequest(const String &filename, const String &submitvalue) {
+void onEndOfRequest(const String & filename, const String & submitvalue) {
 
   if (onEndOfRequestPtr) (*onEndOfRequestPtr)(filename, submitvalue);
 }
@@ -123,19 +130,19 @@ void onEndOfRequest(const String &filename, const String &submitvalue) {
 
 
 //pointeur du gestionanire de refresh
-bool  (*onRefreshItemPtr)(const String &keyname, String &key) = NULL;
+bool  (*onRefreshItemPtr)(const String & keyname, String & key) = NULL;
 
-bool onRefreshItem(const String &keyname, String &key) {
+bool onRefreshItem(const String & keyname, String & key) {
   if (onRefreshItemPtr) return (*onRefreshItemPtr)(keyname, key);
   return (false);
 }
 
 //pointeur du gestionaire de repeatLine
-bool (*onRepeatLinePtr)(const String &repeatname, const int num) = NULL;
+bool (*onRepeatLinePtr)(const String & repeatname, const int num) = NULL;
 // appelé avant chaque ligne precédée d'un [#REPEAT_LINE xxxxxx#]  repeatname = xxxxxx
-bool onRepeatLine(const String &repeatname, const int num) {
+bool onRepeatLine(const String & repeatname, const int num) {
   D_print(F("WEB: got a repeat ")); D_print(repeatname);
-  D_print(F(" num=")); D_println(num);
+  D_print(F(" num = ")); D_println(num);
   if ( repeatname.equals(F("WIFISETUP_LIST")) ) return repeatLineScanNetwork(num);
   if (onRepeatLinePtr) return (*onRepeatLinePtr)(repeatname, num);
   D_println(F("WEB: repeat not catched "));
@@ -158,11 +165,11 @@ void HTTP_HandleRequests() {
   D_print(Server.uri());
   D_print(F("' from "));
   D_print(Server.client().remoteIP());
-  D_print(':');
+  D_print(": ");
   D_print(Server.client().remotePort());
   D_print(F(" <= "));
   D_print(Server.client().localIP());
-  D_print(':');
+  D_print(": ");
   D_print(Server.client().localPort());
   D_println();
 
@@ -170,7 +177,7 @@ void HTTP_HandleRequests() {
   String filePath = AppWebPtr->_defaultWebFolder; //default /web;
   if ( Server.client().localIP() == WiFi.localIP() ) {
     // specific for station nothing special to do
-    D_println(F("WEB: answer as STATION"));
+    //    D_println(F("WEB: answer as STATION"));
 
   } else if ( Server.client().localIP() != WiFi.softAPIP() ) {
     // specific for unknow client -> abort request
@@ -178,7 +185,7 @@ void HTTP_HandleRequests() {
     return;
   } else {
     // specific for AP client -> check specific config for filename and handle Captive mode
-    D_println(F("WEB: answer as AP"));
+    //    D_println(F("WEB: answer as AP"));
     if (AppWebPtr->_captiveAP ) {
       filePath = AppWebPtr->_captiveWebFolder; //default /web/wifisetup
 
@@ -204,6 +211,8 @@ void HTTP_HandleRequests() {
         D_println(F("WEB: --- GET closed with a 204"));
         return;
       }
+      // rearm timeout for captive portal
+      EventManagerPtr->pushDelayEvent(AppWebPtr->_portalTimeoutInSeconds * 1000, evWEBTimerEndOfCaptive);
       //
       //  // rearm timeout for captive portal
       //  // to hide captive mode stop DNS captive if a request is good (hostheader=localip)
@@ -498,7 +507,7 @@ void HTTP_HandleRequests() {
   D_println(message);
   message += F("\n<br>");
   for (uint8_t i = 0; i < Server.args(); i++) {
-    message += " " + Server.argName(i) + ": " + Server.arg(i) + "\n<br>";
+    message += ' ' + Server.argName(i) + ": " + Server.arg(i) + "\n<br>";
   }
   message += "<H2><a href=\"/\">go home</a></H2><br>";
   Server.send(404, "text/html", message);
