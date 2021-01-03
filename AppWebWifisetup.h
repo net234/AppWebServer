@@ -111,9 +111,9 @@ bool repeatLineScanNetwork(const int num) {
 //  index.html         choix des pages de configuration  (auto refresh 30 seconde vers /index.html)
 //
 //  configure.html     soumet un formulaire de configuration  (auto refresh 30 seconde vers index.html)
-//        si le formulaire est ok on redirect vers message.html  
+//        si le formulaire est ok on redirect vers message.html
 //  message.html    affiche un message d'attente (auto refresh 5 secondes)
-//        quand le trySetup est fini on redirect vers resultat.html   
+//        quand le trySetup est fini on redirect vers resultat.html
 //  resultat.html    affiche le resultat (auto refresh 30 seconde vers index.html)
 //
 //
@@ -160,7 +160,8 @@ void do_appweb_wifisetup() {
   trySetupPtr->PASS.trim();
   trySetupPtr->isTrying = false;
   //TODO: make a redirectTo(uri) function
-  AppWebPtr->ACTION_TITLE=F("WiFiSetup");
+  AppWebPtr->ACTION_redirect = "";
+  AppWebPtr->ACTION_TITLE = F("WiFiSetup");
   AppWebPtr->ACTION_NAME =  F("Connection au WiFi ");
   AppWebPtr->ACTION_NAME += aSSID;
   AppWebPtr->ACTION_TEXT =  F("...");
@@ -171,12 +172,13 @@ void do_appweb_wifisetup() {
 
 // gestion du submit appweb_reset
 void do_appweb_reset() {
-  AppWebPtr->ACTION_TITLE=F("Reset");
+  AppWebPtr->ACTION_redirect = "";
+  AppWebPtr->ACTION_TITLE = F("Reset");
   AppWebPtr->ACTION_NAME =  F("Reset");
   AppWebPtr->ACTION_TEXT =  "";
   TWS::redirectUri = F("message.html");
   // delay 100ms the reset to allow redirect to be done
-  EventManagerPtr->pushDelayEvent(100, evWEBDoReset);  
+  EventManagerPtr->pushDelayEvent(100, evWEBDoReset);
 }
 ////////////////// gestion de wifisetup/test.html //////////
 
@@ -235,7 +237,16 @@ void jobWEBTrySetupValidate() {
         TWConfig.save();
       }
       WiFi.enableAP(false);    // stop AP config is done
+//      AppWebPtr->ACTION_redirect = "http://";
+//      AppWebPtr->ACTION_redirect += TWConfig.deviceName;
+//      AppWebPtr->ACTION_redirect += ".local";
     }
+    
+    AppWebPtr->ACTION_redirect = F("resultat.html");
+    AppWebPtr->ACTION_TITLE = F("WiFiSetup");
+    AppWebPtr->ACTION_NAME =  F("Connection au WiFi ");
+    AppWebPtr->ACTION_NAME += trySetupPtr->SSID;
+    AppWebPtr->ACTION_TEXT =  F("Liaison effectuée");
 
     delete trySetupPtr;
     trySetupPtr = nullptr;
@@ -255,9 +266,20 @@ void jobWEBTrySetupAbort() {
       WiFi.begin(trySetupPtr->oldSSID, trySetupPtr->oldPASS);  // put back STA old credential if any
     }
     WiFi.persistent(true);
+    
+    
+    AppWebPtr->ACTION_redirect = F("resultat.html");
+    AppWebPtr->ACTION_TITLE = F("WiFiSetup");
+    AppWebPtr->ACTION_NAME =  F("Connection au WiFi ");
+    AppWebPtr->ACTION_NAME += trySetupPtr->SSID;
+    AppWebPtr->ACTION_TEXT =  F("Liaison impossible ");
+    if (trySetupPtr->SSID.length() > 0) {
+      AppWebPtr->ACTION_TEXT += "WiFi ";
+      AppWebPtr->ACTION_TEXT += trySetupPtr->oldSSID;
+      AppWebPtr->ACTION_TEXT += " reconfiguré";
+    }
     delete trySetupPtr;
     trySetupPtr = nullptr;
-
   }
 
 }

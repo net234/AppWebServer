@@ -126,6 +126,8 @@ class AppWebServer {
     //    String currentUri();                            // return the last requested URI (actual page in calllback)
     //    // var
     // PRESET ACTION KEY
+    String PAGENAME;      // [#PAGENAME appweb_message#] (present on request if in first line of .html page)
+    String ACTION_redirect = "/index.html";
     String ACTION_TITLE;  // default [#ACTION_TITLE#] key replacement
     String ACTION_NAME;   // default [#ACTION_NAME#] key replacement
     String ACTION_TEXT;   // default [#ACTION_TEXT#] key replacement
@@ -136,7 +138,7 @@ class AppWebServer {
     String  _captiveWebFolder;       // Web base Path for captive mode
     bool    _standAlone = false;     // device work only on AP mode (in progress)
     bool    _captiveAP = false;      // used to swith between standard mode
-    String  _random;                 // random number changed on each request without submit
+    String  _random;                 // random number changed on each request without submit  TODO: finish this
     // String  page_id;
   private:
     byte _debugLevel = 0;  // 0 = none / 1 = minimal / 2 = variable request / 3 = wifi debug (must be set before begin)

@@ -37,6 +37,8 @@ void translateKey(String &key) {
     key = AppWebPtr->ACTION_NAME;
   } else if ( key.equals(F("ACTION_TEXT")) ) {
     key = AppWebPtr->ACTION_TEXT;
+  } else if ( key.equals(F("PAGENAME")) ) {
+    key = AppWebPtr->PAGENAME;
   } else if ( key.equals(F("CHIP_ID")) ) {
     key = ESP.getChipId();
   } else if ( key.equals(F("NEW_RANDOM")) ) {
@@ -95,10 +97,17 @@ void onStartRequest(const String &filename, const String &submitvalue) {
   if (&submitvalue && submitvalue.startsWith(F("appweb_")) && submitvalue.endsWith(AppWebPtr->_random) ) {
     if ( submitvalue.startsWith(F("appweb_wifisetup_")) ) {
       do_appweb_wifisetup();
-    } else if ( submitvalue.startsWith(F("appweb_reset_")) ) { 
+    } else if ( submitvalue.startsWith(F("appweb_reset_")) ) {
       do_appweb_reset();
     }
   }
+  // track "appweb_message"    request with no message
+  if ( AppWebPtr->PAGENAME.startsWith(F("appweb_message")) && AppWebPtr->ACTION_redirect.length() > 0 ) {
+    if (AppWebPtr->ACTION_TITLE.length() == 0 ) AppWebPtr->ACTION_redirect = F("/index.html");
+    redirectUri = AppWebPtr->ACTION_redirect;
+    AppWebPtr->ACTION_redirect = "";
+  }
+
   if (onStartRequestPtr) (*onStartRequestPtr)(filename, submitvalue);
 }
 
@@ -107,7 +116,7 @@ void onStartRequest(const String &filename, const String &submitvalue) {
 void (*onEndOfRequestPtr)(const String &filename, const String &submitvalue) = NULL;
 
 void onEndOfRequest(const String &filename, const String &submitvalue) {
-  
+
   if (onEndOfRequestPtr) (*onEndOfRequestPtr)(filename, submitvalue);
 }
 
@@ -158,7 +167,7 @@ void HTTP_HandleRequests() {
   D_println();
 
   // find if client call STATION or AP
-  String fileName = AppWebPtr->_defaultWebFolder; //default /web;
+  String filePath = AppWebPtr->_defaultWebFolder; //default /web;
   if ( Server.client().localIP() == WiFi.localIP() ) {
     // specific for station nothing special to do
     D_println(F("WEB: answer as STATION"));
@@ -171,8 +180,8 @@ void HTTP_HandleRequests() {
     // specific for AP client -> check specific config for filename and handle Captive mode
     D_println(F("WEB: answer as AP"));
     if (AppWebPtr->_captiveAP ) {
-      fileName = AppWebPtr->_captiveWebFolder; //default /web/wifisetup
-      
+      filePath = AppWebPtr->_captiveWebFolder; //default /web/wifisetup
+
       // in captive mode all requests to html or txt are re routed to "http://localip()" with a 302 reply
       if ( !( Server.hostHeader().startsWith( WiFi.softAPIP().toString() ) )  && Server.uri().endsWith(".html") ||  Server.uri().endsWith(".txt") || Server.uri().endsWith("redirect") ) {
         D_println(F("WEB: Request redirected to captive portal"));
@@ -207,41 +216,43 @@ void HTTP_HandleRequests() {
     }
   }
 
-  if ( fileName.length() == 0 ) fileName = '/';
-  fileName += Server.uri();
+  if ( filePath.length() == 0 ) filePath = '/';
+  filePath += Server.uri();
   // todo   protection against ../
 
-  if (fileName.endsWith(F("/")) ) fileName += "index.html";   //default page ;
+  if (filePath.endsWith(F("/")) ) filePath += "index.html";   //default page ;
 
   String fileMIME;
 
   // find MIMETYPE for standard files
   enum fileType_t { NONE, CSS, ICO, PNG, JPG, GIF, JS, HTML } fileType = NONE;
-  if ( fileName.endsWith(F(".css")) ) {
+  if ( filePath.endsWith(F(".css")) ) {
     fileType = CSS;
     fileMIME = F("text/css");
-  } else if ( fileName.endsWith(F(".ico")) ) {
+  } else if ( filePath.endsWith(F(".ico")) ) {
     fileType = ICO;
     fileMIME = F("image/x-icon");
-  } else if ( fileName.endsWith(F(".png")) ) {
+  } else if ( filePath.endsWith(F(".png")) ) {
     fileType = PNG;
     fileMIME = F("image/png");
-  } else if ( fileName.endsWith(F(".jpg")) ) {
+  } else if ( filePath.endsWith(F(".jpg")) ) {
     fileType = JPG;
     fileMIME = F("image/jpg");
-  } else if ( fileName.endsWith(F(".gif")) ) {
+  } else if ( filePath.endsWith(F(".gif")) ) {
     fileType = GIF;
     fileMIME = F("image/gif");
-  } else if ( fileName.endsWith(F(".js")) ) {
+  } else if ( filePath.endsWith(F(".js")) ) {
     fileType = JS;
     fileMIME = F("application/javascript");
-  } else if ( fileName.endsWith(F(".html")) ) {
+  } else if ( filePath.endsWith(F(".html")) ) {
     fileType = HTML;
     fileMIME = F("text/html");
   }
 
   // On each http request a callback to onRequest is call to inform sketch of any http request with the submit name if submit arg exist
   // if redirectTo(aUri) is set then an error 302 will be sent to redirect request
+
+
 
   TWS::redirectUri = "";
   String submitValue;
@@ -252,7 +263,41 @@ void HTTP_HandleRequests() {
     D_println("'");
   }
 
-  onStartRequest(fileName, submitValue);
+  // this buffer is user for file transismission and is locked in static ram to avoid heap fragmentation
+  static    char staticBufferLine[1025];               // static are global so dont overload stack
+
+  // detection of [#PAGENAME appweb_message#] on first line of html pages
+  AppWebPtr->PAGENAME = "";
+  // default page name is the filename itself
+  int aPos = filePath.lastIndexOf("/");
+  if (aPos >= 0) AppWebPtr->PAGENAME = filePath.substring(aPos + 1);
+  if (fileType == HTML) {
+    // try to grab keyword in first line of the file
+    File aFile = LittleFS.open(filePath, "r");
+    if (aFile) {
+      aFile.setTimeout(0);   // to avoid delay at EOF
+      // read first line  TODO: cache the keyword to avoid rereading file on each refresh ????
+      int size = aFile.readBytesUntil( '\n', staticBufferLine, 1000 );
+      staticBufferLine[size] = 0x00;
+      aFile.close();
+      if (char* startPtr = strstr(staticBufferLine, "[#PAGENAME ") ) {  // start detected
+        startPtr += 11;
+        char* stopPtr = strstr( startPtr + 1, "#]" ); // at least 1 letter keyword [#  #]
+        int len = stopPtr - startPtr;
+        if (  stopPtr && len > 0 && len <= 50 ) { // abort if no stop or lenth of keyword over 50
+          stopPtr[0] = 0x00;  // end of keyword
+          AppWebPtr->PAGENAME = startPtr;
+          AppWebPtr->PAGENAME.trim();
+        }
+      }
+    }
+    if (AppWebPtr->PAGENAME.length() > 0) {
+      D_print(F("WEB: pagename is "));
+      D_println(AppWebPtr->PAGENAME);
+    }
+  }
+
+  onStartRequest(filePath, submitValue);
 
   if (TWS::redirectUri.length() > 0) {
     D_print(F("WEB redirect "));
@@ -280,8 +325,7 @@ void HTTP_HandleRequests() {
     // traitement des chaines par le Sketch
     String answer;
     answer.reserve(1000);   // should be max answer (all answers)
-    //String aKey;
-    //aKey.reserve(500);      // should be max for 1 value
+
     for (uint8_t N = 0; N < Server.args(); N++) {
       //     Serial.print(F("WEB: refresh "));
       //     Serial.print(Serveur.argName(N));
@@ -335,11 +379,11 @@ void HTTP_HandleRequests() {
   //
   //  ================= Deal with local web pages ============
   File aFile;
-  if (fileType != NONE) aFile = LittleFS.open(fileName, "r");
+  if (fileType != NONE) aFile = LittleFS.open(filePath, "r");
   bool doChunk = false;
   if (aFile) {
     D_print(F("WEB: Answer with file "));
-    D_println(fileName);
+    D_println(filePath);
     if (fileType == HTML) {
       Server.sendHeader("Cache-Control", "no-cache");
       Server.setContentLength(CONTENT_LENGTH_UNKNOWN);
@@ -350,7 +394,7 @@ void HTTP_HandleRequests() {
     }
     Server.send(200, fileMIME.c_str());
     aFile.setTimeout(0);   // to avoid delay at EOF
-    static    char aBuffer[1025];               // static are global so dont overload heap
+
     String repeatString;
     int  repeatNumber;
     bool repeatActive = false;
@@ -361,28 +405,28 @@ void HTTP_HandleRequests() {
       if (!doChunk) {
 
         // standard file (not HTML) are with 1024 byte buffer
-        size = aFile.readBytes( aBuffer, 1024 );
+        size = aFile.readBytes( staticBufferLine, 1024 );
       } else {
 
         // chunked file are read line by line with spefic keyword detection
         // first keyword is [# REPEAT_LINE xxxxxx#]
         if (!repeatActive) {  // if repeat we will send the repeat line
           // if not in repeat line mode   just read one line
-          size = aFile.readBytesUntil( '\n', aBuffer, 1000 );
-          if (size < 1000) aBuffer[size++] = '\n'; //!!! on exactly 1000 bytes lines the '\n' will be lost :)
-          aBuffer[size] = 0x00; // make aBuffer a Cstring
+          size = aFile.readBytesUntil( '\n', staticBufferLine, 1000 );
+          if (size < 1000) staticBufferLine[size++] = '\n'; //!!! on exactly 1000 bytes lines the '\n' will be lost :)
+          staticBufferLine[size] = 0x00; // make staticBufferLine a Cstring
           // Gestion du [# REPEAT_LINE xxxxxx#]
           // if a line start with  [#REPEAT_LINE *#] it will be sended until OnRepat Call bask returne false
           // this help to display records of database ot any table (see wifisetup.html)
 
-          if (strncmp( "[#REPEAT_LINE", aBuffer, 13) == 0) {
-            char* startPtr = aBuffer + 14;
+          if (strncmp( "[#REPEAT_LINE", staticBufferLine, 13) == 0) {
+            char* startPtr = staticBufferLine + 14;
             char* stopPtr = strstr( startPtr + 1, "#]" ); // at least 1 letter keyword [#  #]
             int len = stopPtr - startPtr;
             if (  stopPtr && len >= 3 && len <= 40 ) { // grab keyword if stop ok and lenth of keyword under 40
               // grab keyword
               stopPtr[0] = 0x00;  // end of keyword
-              stopPtr +=2;        // skip "#]"
+              stopPtr += 2;       // skip "#]"
               aStrKey = startPtr;
               aStrKey.trim();
               // Save the line in a string
@@ -393,14 +437,14 @@ void HTTP_HandleRequests() {
           }  // end if REPEAT found
         }  // endif  !repeat active  (detection REPEAT)
         if (repeatActive) {
-          aBuffer[0] = 0x00;
+          staticBufferLine[0] = 0x00;
           // ask the sketch if we should repeat
           repeatActive = onRepeatLine(aStrKey, repeatNumber++);
-          if ( repeatActive ) strcpy(aBuffer, repeatString.c_str());
-          size = strlen(aBuffer);
+          if ( repeatActive ) strcpy(staticBufferLine, repeatString.c_str());
+          size = strlen(staticBufferLine);
         }
 
-        char* currentPtr = aBuffer;
+        char* currentPtr = staticBufferLine;
         // cut line in part to deal with kerwords "[# xxxxx #]"
         while ( currentPtr = strstr(currentPtr, "[#") ) {  // start detected
           char* startPtr = currentPtr + 2;
@@ -422,24 +466,24 @@ void HTTP_HandleRequests() {
 
           // Ajout de la chaine de remplacement
           strncpy(currentPtr, aStr.c_str(), 200);
-          currentPtr += min(aStr.length(),200U);
+          currentPtr += min(aStr.length(), 200U);
           // Ajoute la suite
           strncpy(currentPtr, bBuffer.c_str(), 500);
-          size = strlen(aBuffer);
+          size = strlen(staticBufferLine);
 
           //
         }// while
       } // else do chunk
       //
       //      D_print('.');
-      if (size) Server.sendContent_P(aBuffer, size);
+      if (size) Server.sendContent_P(staticBufferLine, size);
     }  // if avail
     if (doChunk) Server.chunkedResponseFinalize();
     //    D_println("<");
     //Server.client().stop();
     D_println(F("WEB: GET answered with no stop "));
     aFile.close();
-    onEndOfRequest(fileName, submitValue);
+    onEndOfRequest(filePath, submitValue);
     return;
   }
   //  deal with file not found
