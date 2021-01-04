@@ -1,7 +1,7 @@
 ## Main version is here :arrow_right: [Main Branch](https://github.com/net234/AppWebServer)
 ## Text en francais :arrow_right: [En Francais](LISEZMOI.md)
 
-# AppWebServer beta version B01
+# AppWebServer beta version B02 (need BetaEvents.lib)
 
 Simple Arduino lib to build an interative aplication upon local html pages
 A file oriented Web Server build for dynamic user inteface with ESP8266 application.

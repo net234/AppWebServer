@@ -26,6 +26,7 @@
    V1.0.1  Add interactive js
    V1.0.2  Stand alone captive portal
    V1.0.3  1/12/2020  rewriting
+   Version B02  01/2020  Ajout des events  (BetaEvents.lib)
 
 
   TODO:
@@ -47,12 +48,12 @@
 
 
 
-//#define D_print    Serial.print
-//#define D_println  Serial.println
+#define D_print    Serial.print
+#define D_println  Serial.println
 #define D1_print    Serial.print
 #define D1_println  Serial.println
-#define D_print(...)    while(0) {  }
-#define D_println(...)  while(0) {  }
+//#define D_print(...)    while(0) {  }
+//#define D_println(...)  while(0) {  }
 
 /* Evenements du Manager (voir betaEvents.h)
   evNill = 0,      // No event
@@ -69,12 +70,18 @@
 
 // Liste des evenements specifique WEB
 // TODO: check at compile time if evAwsTrySetup = evWEB
-enum EventCodeWEB_t {
+enum EventCodeWEB_t:uint8_t {
   // evenement recu
   evWEBTrySetup = 50,         // A new config setup need to tryed
   evWEBTimerEndOfTrySetup,    // Time out for the try
   evWEBTimerEndOfCaptive,     // Timer to stop captive
-  evWEBDoReset,
+  evWEBDoReset,               // WEB user requested a Reset (from WiFiSetup)
+  evWEBWiFiOn,                // WiFi turned to ON
+  evWEBWiFiOff,               // WiFi turned to OFF
+  evWEBStationOn,             // Station turned to ON
+  evWEBStationOff,            // Station turned to OFF
+  evWEBAccessPointOn,         // AccessPoint turned to ON
+  evWEBAccessPointOff,        // AccessPoint turned to OFF
 };
 
 
@@ -159,7 +166,7 @@ class AppWebServer {
     //String webFolder = "/web";
     //String  _hostname;      //  SSID en mode AP et Serveur name en mode STATION
 
-    WiFiMode_t    _WiFiMode = (WiFiMode_t)99;  // mode unknow
+    //WiFiMode_t    _WiFiMode = (WiFiMode_t)99;  // mode unknow
     //WiFiMode_t    _newWiFiMode = WIFI_OFF;
     //TW_WiFiStatus_t  _WiFiStatus = tws_WIFI_TRANSITION;
 

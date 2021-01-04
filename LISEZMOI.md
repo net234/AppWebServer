@@ -1,7 +1,7 @@
 ## Telechargement du source :arrow_right: [Main Branch](https://github.com/net234/AppWebServer)
 ## Text in english :arrow_right: [In English](README.md)
 
-# AppWebServer beta version B01
+# AppWebServer beta version B02 (fonctionne avec BetaEvents.lib)
 
 - Une simple librairie Arduino pour construire des applications IoT Basée sur des pages Web incluse dans un serveur local.
 - C'est un serveur de fichier construit pour developper un interface utilisateur dynamic pour une application sur un ESP8266.

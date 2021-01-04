@@ -27,6 +27,9 @@
    V1.0    Extracted from Betaporte
    V1.0.1  Add interactive js
    V1.0.2  Stand alone captive portal
+   Version B02  01/2020  Ajout des events  (BetaEvents.lib)
+
+
 
    TODO:  refresh stay a 1000 (after auto refresh from wifisetup)
    TODO: mode AP permanent with no capture
@@ -120,15 +123,15 @@ void setup() {
   MyWebServer.setCallBack_OnStartRequest(&on_HttpRequest);
   MyWebServer.setCallBack_OnRefreshItem(&on_RefreshItem);
   //  ServeurWeb.setCallBack_OnRepeatLine(&on_RepeatLine);
-  MyWebServer.begin(F(APP_VERSION));
+  MyWebServer.begin(F(APP_VERSION), 4);
 
   //Check if WEB in flash is the good on  (dont forget to UPLOAD the web on the flash with LittleFS)
   if ( !String(F(APP_VERSION)).startsWith( MyWebServer.getWebName() ) ) {
     Serial.print("Invalid WEB pages '");
     Serial.print(MyWebServer.getWebName());
     Serial.println("'");
-    delay(3000);
-    ESP.reset();
+    //    delay(3000);
+    //    ESP.reset();
   }
 
 
@@ -236,6 +239,26 @@ void loop() {
       }
       break;
 
+    case evWEBWiFiOn:
+      Serial.println(F("Event: evWEBWiFiOn"));
+      break;
+
+    case evWEBWiFiOff:
+      Serial.println(F("Event: evWEBWiFiOff"));
+      break;
+    case evWEBStationOn:
+      Serial.println(F("Event: evWEBStationOn"));
+      break;
+    case evWEBStationOff:
+      Serial.println(F("Event: evWEBStationOff"));
+      break;
+    case evWEBAccessPointOn:
+      Serial.println(F("Event: evWEBAccessPointOn"));
+      break;
+    case evWEBAccessPointOff:
+      Serial.println(F("Event: evWEBAccessPointOff"));
+      break;
+
 
     case evInChar:
       switch (MyEvent.inChar)
@@ -282,27 +305,38 @@ void loop() {
 
       if (MyEvent.inputString.equals(F("WIFIOFF"))) {
         Serial.println("setWiFiMode(WiFi_OFF)");
+        WiFi.forceSleepWake();
+        delay(1);
+
         WiFi.mode(WIFI_OFF);
       }
 
       if (MyEvent.inputString.equals(F("WIFISTA"))) {
         Serial.println("setWiFiMode(WiFi_STA)");
+        WiFi.forceSleepWake();
+        delay(1);
         WiFi.mode(WIFI_STA);
       }
 
       if (MyEvent.inputString.equals(F("WIFIAP"))) {
         Serial.println("setWiFiMode(WiFi_AP)");
+        WiFi.forceSleepWake();
+        delay(1);
         WiFi.mode(WIFI_AP);
       }
 
 
       if (MyEvent.inputString.equals(F("STATION"))) {
         Serial.println("Start Station");
+        WiFi.forceSleepWake();
+        delay(1);
         WiFi.begin();
       }
 
       if (MyEvent.inputString.equals(F("AP"))) {
         Serial.println("Start AP");
+        WiFi.forceSleepWake();
+        delay(1);
         WiFi.softAP(MyWebServer._deviceName);
       }
       // TODO: a full raz config

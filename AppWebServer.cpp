@@ -18,6 +18,8 @@
 
     You should have received a copy of the GNU General Public License
     along with AppWebServer.  If not, see <https://www.gnu.org/licenses/gpl.txt>.
+
+     Version B02  01/2020  Ajout des events  (BetaEvents.lib)
 */
 
 #include "AppWebServer.h"
@@ -222,18 +224,24 @@ void AppWebServer::handleEvent() {
       break;     // Abort try setup (time out)
 
     case evWEBTimerEndOfCaptive:
-    D_print(F("WIF: timeout Captive portal"));
+      D_print(F("WIF: timeout Captive portal"));
       stopCaptivePortal();
       break;
   }
 
+
+  // Check mode from WiFi module
   // Check if mode changed
-  WiFiMode_t wifimode = WiFi.getMode();
-  if (  _WiFiMode != wifimode) {
-    _WiFiMode = wifimode;
+  uint8_t WiFiMode = WiFi.getMode();
+
+  // TODO: in futur need to check carefully this with sleepmode
+  static uint8_t previousWiFiMode = 0x80;
+
+
+  if (  WiFiMode != previousWiFiMode) {
     // grab WiFi actual mode
     D1_print(F("WIF: --->Wifi mode change to "));
-    D1_println(_WiFiMode);
+    D1_println(WiFiMode);
     D_println(F("WIF: Read wifi current mode and config "));
     D_print(F("SW: SoftAP SSID "));
     D_println(WiFi.softAPSSID());
@@ -242,47 +250,83 @@ void AppWebServer::handleEvent() {
 
     D_print(F("SW: Station SSID "));
     D_println(WiFi.SSID());
+    //    WiFi.printDiag();
 
     //    D_print(F("SW: Station password "));
     //    D_println(WiFi.psk());
 
-    D_print(F("SW: Station IP "));
-    D_println(WiFi.localIP());
-    //wifi_softap_dhcps_stop();
-    captiveDNSStop();
+
+    // ON will be send before any  Station on or AP on
+    if ( (previousWiFiMode & WIFI_AP_STA) == WIFI_OFF) {
+      EventManagerPtr->pushEvent(evWEBWiFiOn);
+//      WiFi.forceSleepWake();
+//      delay(1);
+    }
+
+    if ( (WiFiMode & WIFI_STA)  && !(previousWiFiMode & WIFI_STA)  ) {
+      EventManagerPtr->pushEvent(evWEBStationOn);
+    }
+
+    if ( (WiFiMode & WIFI_AP)  && !(previousWiFiMode & WIFI_AP)  ) {
+      EventManagerPtr->pushEvent(evWEBAccessPointOn);
+    }
+
+    if ( !(WiFiMode & WIFI_STA)  && (previousWiFiMode & WIFI_STA)  ) {
+      EventManagerPtr->pushEvent(evWEBStationOff);
+    }
+
+
+    if ( !(WiFiMode & WIFI_AP)  && (previousWiFiMode & WIFI_AP)  ) {
+      EventManagerPtr->pushEvent(evWEBAccessPointOff);
+    }
+
+
+    // OFF will be send after any  Station off or AP off
+    if ( (WiFiMode & WIFI_AP_STA) == WIFI_OFF) {
+      EventManagerPtr->pushEvent(evWEBWiFiOff);
+      WiFi.forceSleepBegin();
+      delay(1);
+    }
 
     //delay(5);    // to allow MSDNS and Captive to stop
 
-    if (_WiFiMode & WIFI_AP) {
+    if (WiFiMode & WIFI_AP) {
 
-
+      // seems useless !!!!  unless wifi goes powered off
       if (WiFi.softAPIP() != IPAddress(10, 10, 10, 10) ) {
 
-        //    if (_WiFiMode == WIFI_AP) {
-        //      WiFi.softAP(_deviceName);
-        //    }
-        //        delay(100);
-        D1_println(F("WS: need reconfig APIP 10.10.10.10   !!!!!!!!!!"));
-        D1_println(F("reset."));
-        delay(3000);
-        ESP.reset();
-        //        IPAddress local_IP(10, 10, 10, 10);
-        //        IPAddress mask(255, 255, 255, 0);
-        //        bool result = WiFi.softAPConfig(local_IP, local_IP, mask);
-        //        D_print(F("SW: softapconfig = ")); D_println(result);
-        //        D_print(F("SW: SoftAP IP = "));
-        //        D_println(WiFi.softAPIP());
+        //D_println(F("SW: Captive start"));
+        //captiveDNSStart();
+        D_print(F("SW: SoftAP IP "));
+        D_println(WiFi.softAPIP());
+
+        D1_println(F("WIF: need reconfig APIP 10.10.10.10   !!!!!!!!!!"));
+        //D1_println(F("reset."));
+        //delay(3000);
+        //ESP.reset();
+        IPAddress local_IP(10, 10, 10, 10);
+        IPAddress mask(255, 255, 255, 0);
+        bool result = WiFi.softAPConfig(local_IP, local_IP, mask);
+        D_print(F("SW: softapconfig = ")); D_println(result);
+        D_print(F("SW: SoftAP IP = "));
+        D_println(WiFi.softAPIP());
 
       }
 
-      D_println(F("SW: Captive start"));
 
-      captiveDNSStart();
 
+    } else {
+      D_print(F("SW: Station IP "));
+      D_println(WiFi.localIP());
+      //wifi_softap_dhcps_stop();
+      captiveDNSStop();
     }
+
     //  ETS_UART_INTR_DISABLE();
     //  WiFi.disconnect(); //  this alone is not enough to stop the autoconnecter
     //  ETS_UART_INTR_ENABLE();
+    previousWiFiMode = WiFiMode;
+
     D_println(F("WIF: -- end Wifi mode change"));
   }
 
