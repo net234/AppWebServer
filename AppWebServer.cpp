@@ -243,12 +243,12 @@ void AppWebServer::handleEvent() {
     D1_print(F("WIF: --->Wifi mode change to "));
     D1_println(WiFiMode);
     D_println(F("WIF: Read wifi current mode and config "));
-    D_print(F("SW: SoftAP SSID "));
+    D_print(F("WIF: SoftAP SSID "));
     D_println(WiFi.softAPSSID());
-    D_print(F("SW: SoftAP IP "));
+    D_print(F("WIF: SoftAP IP "));
     D_println(WiFi.softAPIP());
 
-    D_print(F("SW: Station SSID "));
+    D_print(F("WIF: Station SSID "));
     D_println(WiFi.SSID());
     //    WiFi.printDiag();
 
@@ -259,8 +259,8 @@ void AppWebServer::handleEvent() {
     // ON will be send before any  Station on or AP on
     if ( (previousWiFiMode & WIFI_AP_STA) == WIFI_OFF) {
       EventManagerPtr->pushEvent(evWEBWiFiOn);
-//      WiFi.forceSleepWake();
-//      delay(1);
+      //      WiFi.forceSleepWake();
+      //      delay(1);
     }
 
     if ( (WiFiMode & WIFI_STA)  && !(previousWiFiMode & WIFI_STA)  ) {
@@ -269,10 +269,12 @@ void AppWebServer::handleEvent() {
 
     if ( (WiFiMode & WIFI_AP)  && !(previousWiFiMode & WIFI_AP)  ) {
       EventManagerPtr->pushEvent(evWEBAccessPointOn);
+      captiveDNSStart();
     }
 
     if ( !(WiFiMode & WIFI_STA)  && (previousWiFiMode & WIFI_STA)  ) {
       EventManagerPtr->pushEvent(evWEBStationOff);
+      captiveDNSStop();
     }
 
 
@@ -295,9 +297,8 @@ void AppWebServer::handleEvent() {
       // seems useless !!!!  unless wifi goes powered off
       if (WiFi.softAPIP() != IPAddress(10, 10, 10, 10) ) {
 
-        //D_println(F("SW: Captive start"));
-        //captiveDNSStart();
-        D_print(F("SW: SoftAP IP "));
+
+        D_print(F("WIF: SoftAP IP "));
         D_println(WiFi.softAPIP());
 
         D1_println(F("WIF: need reconfig APIP 10.10.10.10   !!!!!!!!!!"));
@@ -307,19 +308,14 @@ void AppWebServer::handleEvent() {
         IPAddress local_IP(10, 10, 10, 10);
         IPAddress mask(255, 255, 255, 0);
         bool result = WiFi.softAPConfig(local_IP, local_IP, mask);
-        D_print(F("SW: softapconfig = ")); D_println(result);
-        D_print(F("SW: SoftAP IP = "));
+        D_print(F("WIF: softapconfig = ")); D_println(result);
+        D_print(F("WIF: SoftAP IP = "));
         D_println(WiFi.softAPIP());
-
+        D_println(F("WIF: Captive start"));
       }
 
 
 
-    } else {
-      D_print(F("SW: Station IP "));
-      D_println(WiFi.localIP());
-      //wifi_softap_dhcps_stop();
-      captiveDNSStop();
     }
 
     //  ETS_UART_INTR_DISABLE();
@@ -333,59 +329,53 @@ void AppWebServer::handleEvent() {
 
 
 
-  static int oldStatus = -1;
-  int status = WiFi.status();
+  static uint8_t previousWiFiStatus = 100;
+  int WiFiStatus = WiFi.status();
   //    0 : WL_IDLE_STATUS when Wi-Fi is in process of changing between statuses
   //    1 : WL_NO_SSID_AVAILin case configured SSID cannot be reached
   //    3 : WL_CONNECTED after successful connection is established
   //    4 : WL_CONNECT_FAILED if password is incorrect
   //    6 : WL_DISCONNECTED if module is not configured in station mode
-  if (status != oldStatus) {
-    TryStatus = status;  // chaine pour reporting
+  if (previousWiFiStatus != WiFiStatus) {
+    TryStatus = WiFiStatus;  // chaine pour reporting
 
-    D1_print(F("WF: Status : "));
-    D1_println(status);
-    //    D_println(F("SW: Read wifi current mode and config "));
-    //    D_print(F("SW: SoftAP SSID "));
-    //    D_println(WiFi.softAPSSID());
-    //    D_print(F("SW: SoftAP IP "));
-    //    D_println(WiFi.softAPIP());
-    //
-    //    D_print(F("SW: Station SSID "));
-    //    D_println(WiFi.SSID());
-    //
-    //    D_print(F("SW: Station password "));
-    //    D_println(WiFi.psk());
-    //
-    //    D_print(F("SW: Station IP "));
-    //    D_println(WiFi.localIP());
+    D1_print(F("WIF: Status : "));
+    D1_println(WiFiStatus);
 
-    oldStatus = status;
-    if (status == WL_CONNECTED) {
+    if ( (WiFiStatus == WL_CONNECTED) && (WiFiMode & WIFI_STA) ) {
 
 
-      //MDNS.addService("http", "tcp", 80);
-
-
-
-      TWS::localIp = WiFi.localIP().toString();  // recuperation de l'ip locale
-      if (trySetupPtr) jobWEBTrySetupValidate();
-      bool result = MDNS.begin(_deviceName);
-      D_print(F("STA: MS DNS ON : "));
+      IPAddress WifiIP = WiFi.localIP();
+      TWS::localIp = WifiIP.toString();  // recuperation de l'ip locale
+      bool result = MDNS.begin(_deviceName, WifiIP);
+      D_print(F("STA: MS DNS ON:"));
       D_print(_deviceName);
+      D_print(F(" IP:"));
+      D_print(TWS::localIp);
       D_print(F(" r="));
       D_println(result);
 
-    } else {
-      MDNS.end();  // only if connected
+      if (trySetupPtr) {
+        jobWEBTrySetupValidate();
+      }
+
+      EventManagerPtr->pushEvent(evWEBStationConnectedWiFi);
+
     }
 
-    if (trySetupPtr && status == WL_CONNECT_FAILED ) jobWEBTrySetupAbort();
+    if ( (WiFiStatus == WL_DISCONNECTED) && (WiFiMode & WIFI_STA) ) {
+
+      MDNS.end();  // only if connected
+      EventManagerPtr->pushEvent(evWEBStationDisconnectedWiFi);
+    }
+
+    if (trySetupPtr && WiFiStatus == WL_CONNECT_FAILED ) jobWEBTrySetupAbort();
+    previousWiFiStatus = WiFiStatus;
 
   }
   Server.handleClient();
   if (captiveDNS) dnsServer.processNextRequest();
-  MDNS.update();
+  if (MDNS.isRunning()) MDNS.update();
 }
 
 String AppWebServer::getWebName() {
@@ -441,4 +431,45 @@ void   AppWebServer::stopCaptivePortal() {
   WiFi.enableAP(false);   // wifi est non persistant
   _captivePortalActive = false;
   D1_println(F("WEB: stop captivePortal"));
+}
+
+void AppWebServer::printEvWEB(const uint8_t eventcode)  {
+  switch (eventcode) {
+    case evWEBTrySetup:
+      Serial.println(F("Event: evWEBTrySetup"));
+      break;
+    case evWEBTimerEndOfTrySetup:
+      Serial.println(F("Event: evWEBTimerEndOfTrySetup"));
+      break;
+    case evWEBTimerEndOfCaptive:
+      Serial.println(F("Event: evWEBTimerEndOfCaptive"));
+      break;
+    case evWEBWiFiOn:
+      Serial.println(F("Event: evWEBWiFiOn"));
+      break;
+    case evWEBWiFiOff:
+      Serial.println(F("Event: evWEBWiFiOff"));
+      break;
+    case evWEBStationOn:
+      Serial.println(F("Event: evWEBStationOn"));
+      break;
+    case evWEBStationOff:
+      Serial.println(F("Event: evWEBStationOff"));
+      break;
+    case evWEBAccessPointOn:
+      Serial.println(F("Event: evWEBAccessPointOn"));
+      break;
+    case evWEBAccessPointOff:
+      Serial.println(F("Event: evWEBAccessPointOff"));
+      break;
+    case evWEBStationConnectedWiFi:
+      Serial.println(F("Event: evWEBStationConnectedWiFi"));
+      break;
+    case evWEBStationDisconnectedWiFi:
+      Serial.println(F("Event: evWEBStationDisonnectedWiFi"));
+      break;
+    case evWEBdevicenameChanged:
+      Serial.println(F("Event: evWEBdevicenameChanged"));
+      break;
+  }
 }

@@ -48,12 +48,12 @@
 
 
 
-#define D_print    Serial.print
-#define D_println  Serial.println
+//#define D_print    Serial.print
+//#define D_println  Serial.println
 #define D1_print    Serial.print
 #define D1_println  Serial.println
-//#define D_print(...)    while(0) {  }
-//#define D_println(...)  while(0) {  }
+#define D_print(...)    while(0) {  }
+#define D_println(...)  while(0) {  }
 
 /* Evenements du Manager (voir betaEvents.h)
   evNill = 0,      // No event
@@ -72,16 +72,19 @@
 // TODO: check at compile time if evAwsTrySetup = evWEB
 enum EventCodeWEB_t:uint8_t {
   // evenement recu
-  evWEBTrySetup = 50,         // A new config setup need to tryed
-  evWEBTimerEndOfTrySetup,    // Time out for the try
-  evWEBTimerEndOfCaptive,     // Timer to stop captive
-  evWEBDoReset,               // WEB user requested a Reset (from WiFiSetup)
-  evWEBWiFiOn,                // WiFi turned to ON
-  evWEBWiFiOff,               // WiFi turned to OFF
-  evWEBStationOn,             // Station turned to ON
-  evWEBStationOff,            // Station turned to OFF
-  evWEBAccessPointOn,         // AccessPoint turned to ON
-  evWEBAccessPointOff,        // AccessPoint turned to OFF
+  evWEBTrySetup = 50,           // A new config setup need to tryed
+  evWEBTimerEndOfTrySetup,      // Time out for the try
+  evWEBTimerEndOfCaptive,       // Timer to stop captive
+  evWEBDoReset,                 // WEB user requested a Reset (from WiFiSetup)
+  evWEBWiFiOn,                  // WiFi turned to ON
+  evWEBWiFiOff,                 // WiFi turned to OFF
+  evWEBStationOn,               // Station turned to ON
+  evWEBStationOff,              // Station turned to OFF
+  evWEBAccessPointOn,           // AccessPoint turned to ON
+  evWEBAccessPointOff,          // AccessPoint turned to OFF
+  evWEBStationConnectedWiFi,    // Station Connected with Local WiFi
+  evWEBStationDisconnectedWiFi, // Station Disconnected from Local WiFi
+  evWEBdevicenameChanged,       // User recorded succesfully a new device name
 };
 
 
@@ -131,7 +134,7 @@ class AppWebServer {
     void setCallBack_OnTranslateKey(void (*onTranslateKey)(String &key));  // call back pour Fournir les [# xxxxx #]
     void setCallBack_OnRefreshItem(bool (*onRefreshItem)(const String &keyname, String &key));  // call back pour fournir les class='refresh'
     void setCallBack_OnRepeatLine(bool (*onRepeatLine)(const String &repeatname, const int num));     // call back pour gerer les Repeat
-    
+    void printEvWEB(const uint8_t eventcode);
     //    String getArg(const String argName);
     //    String currentUri();                            // return the last requested URI (actual page in calllback)
     //    // var

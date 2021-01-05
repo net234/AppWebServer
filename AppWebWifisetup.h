@@ -229,7 +229,10 @@ void jobWEBTrySetupValidate() {
       D_print(F("!="));
       D_println(AppWebPtr->_deviceName);
       AppWebPtr->setDeviceName(trySetupPtr->deviceName);  //check devicename validity
+      bool apWasOn = WiFi.getMode() & WIFI_AP;
       WiFi.softAP(AppWebPtr->_deviceName);   // save in flash
+      EventManagerPtr->pushEvent(evWEBdevicenameChanged);
+      if (!apWasOn) WiFi.enableAP(false);
       if (TWConfig.deviceName != WiFi.softAPSSID()) {
         D_print(F("SW: need to need to rewrite flah config   !!!!! "));
         D_print(TWConfig.deviceName);

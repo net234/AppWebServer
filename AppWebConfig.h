@@ -29,12 +29,12 @@
 #define TWFS  LittleFS
 
 
-#define D_print    Serial.print
-#define D_println  Serial.println
+//#define D_print    Serial.print
+//#define D_println  Serial.println
 #define D1_print    Serial.print
 #define D1_println  Serial.println
-//#define D_print(...)    while(0) {  }
-//#define D_println(...)  while(0) {  }
+#define D_print(...)    while(0) {  }
+#define D_println(...)  while(0) {  }
 
 
 // Objet to deal with file config

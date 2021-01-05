@@ -162,6 +162,7 @@ void loop() {
 
   MyEvent.getEvent(sleepOk);
   MyEvent.handleEvent();
+  MyWebServer.printEvWEB(MyEvent.currentEvent.code);
   switch (MyEvent.currentEvent.code)
   {
 
@@ -226,7 +227,7 @@ void loop() {
 
 
     case evWEBDoReset:
-      Serial.print(F("Reset requested by user"));
+      Serial.print(F("Event: Reset requested by user"));
       delay(100);
 #ifdef  __AVR__
       wdt_enable(WDTO_120MS);
@@ -239,25 +240,6 @@ void loop() {
       }
       break;
 
-    case evWEBWiFiOn:
-      Serial.println(F("Event: evWEBWiFiOn"));
-      break;
-
-    case evWEBWiFiOff:
-      Serial.println(F("Event: evWEBWiFiOff"));
-      break;
-    case evWEBStationOn:
-      Serial.println(F("Event: evWEBStationOn"));
-      break;
-    case evWEBStationOff:
-      Serial.println(F("Event: evWEBStationOff"));
-      break;
-    case evWEBAccessPointOn:
-      Serial.println(F("Event: evWEBAccessPointOn"));
-      break;
-    case evWEBAccessPointOff:
-      Serial.println(F("Event: evWEBAccessPointOff"));
-      break;
 
 
     case evInChar:
@@ -397,7 +379,7 @@ String getLedStatus() {
 ////// === call back to handle request (grab the "Swith the led button") ============================
 
 
-void on_HttpRequest(const String &filename, const  String &submitValue) {
+void on_HttpRequest(const String & filename, const  String & submitValue) {
   if  ( submitValue ==  "switchLed" ) {
     switchLed2();
   }
@@ -472,55 +454,3 @@ bool on_RefreshItem(const String & keyname, String & key) {
 
   return (false);
 }
-
-
-
-
-
-//  if (ServeurWeb.WiFiModeChanged) {
-//    //{ twm_WIFI_OFF = 0, twm_WIFI_STA, twm_WIFI_AP,twm_WIFI_APSETUP };
-//    switch (ServeurWeb.getWiFiMode()) {
-//      case twm_WIFI_OFF:
-//        Serial.println(F("TW wifi Mode OFF"));
-//        break;
-//      case twm_WIFI_STA:
-//        Serial.println(F("TW wifi Mode Station"));
-//        break;
-//      case twm_WIFI_AP:
-//        Serial.println(F("TW wifi Mode AP"));
-//        break;
-//      case twm_WIFI_APSETUP:
-//        Serial.println("TW wifi Mode AP Setup");
-//        break;
-//      default:
-//        Serial.print(F("TW mode ?:"));
-//        Serial.println(ServeurWeb.getWiFiMode());
-//    } //switch
-//  }// if Mode changed
-
-
-
-
-//  if (ServeurWeb.WiFiStatusChanged) {
-//    //WIFI_OFF, WIFI_OK, WIFI_DISCONNECTED, WIFI_TRANSITION
-//    switch (ServeurWeb.getWiFiStatus()) {
-//      case tws_WIFI_TRANSITION:
-//        Serial.println(F("TS wifi en transition"));
-//        break;
-//      case tws_WIFI_OFF:
-//        Serial.println(F("TW wifi off"));
-//        digitalWrite(LED_LIFE, !LED_ON);
-//        break;
-//      case tws_WIFI_DISCONNECTED:
-//        Serial.println(F("TW wifi Deconnecte"));
-//        digitalWrite(LED_LIFE, !LED_ON);
-//        break;
-//      case tws_WIFI_OK:
-//        digitalWrite(LED_LIFE, LED_ON);
-//        Serial.println("TW wifi station Connected");
-//        break;
-//      default:
-//        Serial.print(F("TW Status?:"));
-//        Serial.println(ServeurWeb.getWiFiStatus());
-//    } //switch
-//  }// if status changed
