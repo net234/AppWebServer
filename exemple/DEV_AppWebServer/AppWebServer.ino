@@ -28,9 +28,9 @@
    V1.0.1  Add interactive js
    V1.0.2  Stand alone captive portal
    Version B02  01/2020  Ajout des events  (BetaEvents.lib)
+   Version B03  13/01/2020   Add csv  removed use of GPIO16 (D0) in demo
 
-
-
+   TODO: little delay for jpg file ?
    TODO:  refresh stay a 1000 (after auto refresh from wifisetup)
    TODO: mode AP permanent with no capture
    TODO: better use of ACTION/Message Page
@@ -43,7 +43,7 @@
 
 
 #define LED_LIFE      LED_BUILTIN
-#define LED2         16
+//#define LED2         16     // do not use it if D0 connected to RST (powerDown hardware)
 #define BP0 0
 #define BP0_DOWN      LOW
 #define APP_VERSION   "AppWebServer Validate V1.1"
@@ -106,7 +106,7 @@ uint32_t refFreeMem;
 void setup() {
   // IO Setup
   pinMode(BP0, INPUT_PULLUP);
-  pinMode(LED2, OUTPUT);
+  //  pinMode(LED_LIFE, OUTPUT);
   Serial.begin(115200);
   Serial.println(F("\r\n\n" APP_VERSION));
 
@@ -122,7 +122,7 @@ void setup() {
   MyWebServer.setCallBack_OnTranslateKey(&on_TranslateKey);
   MyWebServer.setCallBack_OnStartRequest(&on_HttpRequest);
   MyWebServer.setCallBack_OnRefreshItem(&on_RefreshItem);
-  //  ServeurWeb.setCallBack_OnRepeatLine(&on_RepeatLine);
+  MyWebServer.setCallBack_OnRepeatLine(&on_RepeatLine);
   MyWebServer.begin(F(APP_VERSION), 4);
 
   //Check if WEB in flash is the good on  (dont forget to UPLOAD the web on the flash with LittleFS)
@@ -141,7 +141,9 @@ void setup() {
   Serial.print(F(" Freemem Ref= "));
   Serial.println(refFreeMem);
 
-  Serial.println("Bonjour ....");
+  Serial.print("Bonjour '");
+  Serial.print(MyWebServer._deviceName);
+  Serial.println("' ready");
 }
 
 
@@ -191,13 +193,13 @@ void loop() {
     case evBP0Down:
       Serial.println(F("BP0 Down"));
       BP0_lastClick = millis();
-      MyEvent.setMillisecLED(500, 50);   // LED_LIFE 2HZ ratio 50%
+      //MyEvent.setMillisecLED(500, 50);   // LED_LIFE 2HZ ratio 50%
       switchLed2();                      // toogle LED_2
       break;
 
     case evBP0Up:
       Serial.println(F("BP0 Up"));
-      MyEvent.setMillisecLED(1000, 10);   // LED_LIFE 1HZ ratio 10%
+      //MyEvent.setMillisecLED(1000, 10);   // LED_LIFE 1HZ ratio 10%
       break;
 
     case evBP0LongDown:
@@ -357,7 +359,9 @@ void jobBP0() {
 
 void switchLed2() {
   LED2_Status = ! LED2_Status;
-  digitalWrite(LED2, LED2_Status);
+  //digitalWrite(LED2, LED2_Status);
+  MyEvent.setFrequenceLED(1, (LED2_Status == LED_ON) ? 100 : 0);
+
 
   Serial.print("Led is ");
   Serial.println(getLedStatus());
@@ -385,12 +389,36 @@ void on_HttpRequest(const String & filename, const  String & submitValue) {
   }
 }
 
+// global for the repeat
+int currentRepeatLine;
 
 ////// ==== callback to display data on page /////////////
+bool on_RepeatLine(const String & repeatname, const int num) {
+//  Serial.print("got repeat '");
+//  Serial.print(repeatname);
+//  Serial.print("' (");
+//  Serial.print(num);
+//  Serial.println(")");
+
+  if ( repeatname.equals(F("data_list")) ) {
+    currentRepeatLine = num+1;
+    return (currentRepeatLine <= 100);
+  } else {
+    Serial.print("unknow repeat '");
+    Serial.print(repeatname);
+    Serial.println("'");
+  }
+  return (false);
+}
+
+
+
 
 //on_TranslateKey is call on each tag "[#key#]" the tag will be replaced by the value you put in 'key' parameter
 //webdemo request 2 key
 void on_TranslateKey(String & key) {
+  //    Serial.print("Got key '");
+  //    Serial.println(key);
 
   if ( key.equals("APP_VERSION") ) {
 
@@ -401,9 +429,21 @@ void on_TranslateKey(String & key) {
     key = getLedStatus();
 
   } else if ( key.equals("lastClickTime") ) {
-
     // lastClickTime in second
     key = String( (millis() - BP0_lastClick) / 1000);
+
+    // fill up header of CSV
+  } else if ( key.equals("data_header") ) {
+    key = F("num\tvalue\todd");
+
+  } else if ( key.equals("data_line") ) {
+    int aNumber = random(100);
+    key = currentRepeatLine;
+    key += '\t';
+    key += aNumber;
+    key += '\t';
+    key += ( aNumber % 2) ? "impair" : "pair";
+
   } else {
 
     // to track typo on key

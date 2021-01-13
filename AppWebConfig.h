@@ -29,13 +29,15 @@
 #define TWFS  LittleFS
 
 
-//#define D_print    Serial.print
-//#define D_println  Serial.println
-#define D1_print    Serial.print
-#define D1_println  Serial.println
+#ifdef DEBUG_ON 
+#define D_print    Serial.print
+#define D_println  Serial.println
+#else
 #define D_print(...)    while(0) {  }
 #define D_println(...)  while(0) {  }
-
+#endif
+#define D1_print    Serial.print
+#define D1_println  Serial.println
 
 // Objet to deal with file config
 class FileConfig {

@@ -235,7 +235,7 @@ void HTTP_HandleRequests() {
   String fileMIME;
 
   // find MIMETYPE for standard files
-  enum fileType_t { NONE, CSS, ICO, PNG, JPG, GIF, JS, HTML } fileType = NONE;
+  enum fileType_t { NONE, CSS, ICO, PNG, JPG, GIF, JS, CSV, HTML } fileType = NONE;
   if ( filePath.endsWith(F(".css")) ) {
     fileType = CSS;
     fileMIME = F("text/css");
@@ -254,6 +254,9 @@ void HTTP_HandleRequests() {
   } else if ( filePath.endsWith(F(".js")) ) {
     fileType = JS;
     fileMIME = F("application/javascript");
+  } else if ( filePath.endsWith(F(".csv")) ) {
+    fileType = CSV;
+    fileMIME = F("text/csv");
   } else if ( filePath.endsWith(F(".html")) ) {
     fileType = HTML;
     fileMIME = F("text/html");
@@ -281,7 +284,7 @@ void HTTP_HandleRequests() {
   // default page name is the filename itself
   int aPos = filePath.lastIndexOf("/");
   if (aPos >= 0) AppWebPtr->PAGENAME = filePath.substring(aPos + 1);
-  if (fileType == HTML) {
+  if ( fileType == HTML || fileType == CSV ) {
     // try to grab keyword in first line of the file
     File aFile = LittleFS.open(filePath, "r");
     if (aFile) {
@@ -394,7 +397,7 @@ void HTTP_HandleRequests() {
   if (aFile) {
     D_print(F("WEB: Answer with file "));
     D_println(filePath);
-    if (fileType == HTML) {
+    if ( fileType == HTML || fileType == CSV ) {
       Server.sendHeader("Cache-Control", "no-cache");
       Server.setContentLength(CONTENT_LENGTH_UNKNOWN);
       doChunk = true;
@@ -409,12 +412,12 @@ void HTTP_HandleRequests() {
     int  repeatNumber;
     bool repeatActive = false;
     String aStrKey;  // la clef du repeat
-    // repeat until end of file
-    while (aFile.available()) {
+    // repeat until end of file and no repeat
+    while (repeatActive || aFile.available()) {
       int size;
       if (!doChunk) {
 
-        // standard file (not HTML) are with 1024 byte buffer
+        // standard file (not HTML or CSV ) are read with 1024 byte buffer
         size = aFile.readBytes( staticBufferLine, 1024 );
       } else {
 
@@ -487,7 +490,7 @@ void HTTP_HandleRequests() {
       //
       //      D_print('.');
       if (size) Server.sendContent_P(staticBufferLine, size);
-    }  // if avail
+    }  // wile  avail
     if (doChunk) Server.chunkedResponseFinalize();
     //    D_println("<");
     //Server.client().stop();

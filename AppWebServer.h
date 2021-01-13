@@ -25,16 +25,14 @@
    V1.0    Extracted from Betaporte
    V1.0.1  Add interactive js
    V1.0.2  Stand alone captive portal
-   V1.0.3  1/12/2020  rewriting
    Version B02  01/2020  Ajout des events  (BetaEvents.lib)
+   Version B03  13/01/2020   Add csv   they are parsed as html
 
 
-  TODO:
-   dhcp dont work on AP with other ip than 192.164.4.1   (not a real problem)
-   unable to save in wifi flash config another AP ip than 192.164.4.1  (not a real problem)
-   mdns doesnt respond on AP   (fixed 06/12/2020)
-   pass all this stuff with persitent(false) as default !!!!!
-
+   TODO:  refresh stay a 1000 (after auto refresh from wifisetup)
+   TODO: mode AP permanent with no capture
+   TODO: better use of ACTION/Message Page
+   TODO: better deal with new random / random
 **********/
 
 #pragma once
@@ -47,13 +45,17 @@
 //#endif
 
 
-
-//#define D_print    Serial.print
-//#define D_println  Serial.println
-#define D1_print    Serial.print
-#define D1_println  Serial.println
+//#define DEBUG_ON
+#ifdef DEBUG_ON 
+#define D_print    Serial.print
+#define D_println  Serial.println
+#else
 #define D_print(...)    while(0) {  }
 #define D_println(...)  while(0) {  }
+#endif
+#define D1_print    Serial.print
+#define D1_println  Serial.println
+
 
 /* Evenements du Manager (voir betaEvents.h)
   evNill = 0,      // No event

@@ -19,7 +19,17 @@
     You should have received a copy of the GNU General Public License
     along with AppWebServer.  If not, see <https://www.gnu.org/licenses/gpl.txt>.
 
-     Version B02  01/2020  Ajout des events  (BetaEvents.lib)
+   V1.0    Extracted from Betaporte
+   V1.0.1  Add interactive js
+   V1.0.2  Stand alone captive portal
+   Version B02  01/2020  Ajout des events  (BetaEvents.lib)
+   Version B03  13/01/2020   Add csv
+
+
+   TODO:  refresh stay a 1000 (after auto refresh from wifisetup)
+   TODO: mode AP permanent with no capture
+   TODO: better use of ACTION/Message Page
+   TODO: better deal with new random / random
 */
 
 #include "AppWebServer.h"
