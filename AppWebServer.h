@@ -26,13 +26,18 @@
    V1.0.1  Add interactive js
    V1.0.2  Stand alone captive portal
    Version B02  01/2020  Ajout des events  (BetaEvents.lib)
-   Version B03  13/01/2020   Add csv   they are parsed as html
-
+   Version B03  13/01/2020   
+     Add csv   they are parsed as html
+     add a trim on refesh send back
+     add redirectRequestTo(aUri)  method
+     error 404 set in D1 error
+     add  getRepeatLineNumber() methode
 
    TODO:  refresh stay a 1000 (after auto refresh from wifisetup)
    TODO: mode AP permanent with no capture
    TODO: better use of ACTION/Message Page
    TODO: better deal with new random / random
+   TODO: change getRepeatLineNumber() with first line starting to 1 instead of 0
 **********/
 
 #pragma once
@@ -129,13 +134,12 @@ class AppWebServer {
     // //   void softAPconnect(const bool active,const bool persistent = false,const char* = NULL);
     //
     void handleEvent();     // handle http service (to call in top of loop)
-
+	void redirectRequestTo(const String aURI);  //  redirect a request with a redirect error 302
     void setCallBack_OnStartRequest(void (*onstartrequest)(const String & filename, const String & submitValue));          // call back pour gerer les request
-    //    void redirectTo(String const uri);   //  request will be redirected to this URI if set during or after onRequest call back                                   // force a redirect of the current request (to use in OnSubmit)
-    //
     void setCallBack_OnTranslateKey(void (*onTranslateKey)(String &key));  // call back pour Fournir les [# xxxxx #]
     void setCallBack_OnRefreshItem(bool (*onRefreshItem)(const String &keyname, String &key));  // call back pour fournir les class='refresh'
-    void setCallBack_OnRepeatLine(bool (*onRepeatLine)(const String &repeatname, const int num));     // call back pour gerer les Repeat
+    void setCallBack_OnRepeatLine(bool (*onRepeatLine)(const String &repeatname, const uint16_t lineNumber));     // call back pour gerer les Repeat
+	uint16_t getRepeatLineNumber();
     void printEvWEB(const uint8_t eventcode);
     //    String getArg(const String argName);
     //    String currentUri();                            // return the last requested URI (actual page in calllback)

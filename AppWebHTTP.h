@@ -22,6 +22,10 @@
     Gestion du http et des callback http
 */
 
+
+
+
+
 #include "AppWebWifisetup.h"
 //pointer du traducteur de Key
 void (*onTranslateKeyPtr)(String &key) = NULL;
@@ -139,19 +143,19 @@ bool onRefreshItem(const String & keyname, String & key) {
 }
 
 //pointeur du gestionaire de repeatLine
-bool (*onRepeatLinePtr)(const String & repeatname, const int num) = NULL;
+bool (*onRepeatLinePtr)(const String & repeatname, const uint16_t lineNumber) = NULL;
 // appelé avant chaque ligne precédée d'un [#REPEAT_LINE xxxxxx#]  repeatname = xxxxxx
-bool onRepeatLine(const String & repeatname, const int num) {
+bool onRepeatLine(const String & repeatname, const uint16_t lineNumber) {
   D_print(F("WEB: got a repeat ")); D_print(repeatname);
   D_print(F(" num = ")); D_println(num);
-  if ( repeatname.equals(F("WIFISETUP_LIST")) ) return repeatLineScanNetwork(num);
-  if (onRepeatLinePtr) return (*onRepeatLinePtr)(repeatname, num);
+  if ( repeatname.equals(F("WIFISETUP_LIST")) ) return repeatLineScanNetwork(lineNumber);
+  if (onRepeatLinePtr) return (*onRepeatLinePtr)(repeatname, lineNumber);
   D_println(F("WEB: repeat not catched "));
   return (false);
 }
 
-
-
+// global to keep track of number of reapeat with #REPEAT_LINE keyworg
+int16_t  repeatLineNumber;
 
 //// Dealing with WEB HTTP request
 //#define LOCHex2Char(X) (X + (X <= 9 ? '0' : ('A' - 10)))
@@ -350,6 +354,7 @@ void HTTP_HandleRequests() {
         if (answer.length() > 0) answer += '&';
         answer +=  aKeyName;
         answer +=  '=';
+        aKey.trim();
         if ( aKey.length() > 500) {
           aKey.remove(490);
           aKey += "...";
@@ -409,7 +414,6 @@ void HTTP_HandleRequests() {
     aFile.setTimeout(0);   // to avoid delay at EOF
 
     String repeatString;
-    int  repeatNumber;
     bool repeatActive = false;
     String aStrKey;  // la clef du repeat
     // repeat until end of file and no repeat
@@ -445,14 +449,15 @@ void HTTP_HandleRequests() {
               // Save the line in a string
               repeatString = stopPtr;
               repeatActive = true;
-              repeatNumber = 0;
+              repeatLineNumber = -1;
             } // end if  repeat KEY ok
           }  // end if REPEAT found
         }  // endif  !repeat active  (detection REPEAT)
         if (repeatActive) {
           staticBufferLine[0] = 0x00;
           // ask the sketch if we should repeat
-          repeatActive = onRepeatLine(aStrKey, repeatNumber++);
+          repeatLineNumber++;
+          repeatActive = onRepeatLine(aStrKey, repeatLineNumber);
           if ( repeatActive ) strcpy(staticBufferLine, repeatString.c_str());
           size = strlen(staticBufferLine);
         }
@@ -500,15 +505,15 @@ void HTTP_HandleRequests() {
     return;
   }
   //  deal with file not found
-  D_println("error 404");
-  String message = F("File Not Found\n");
-  message += "URI: ";
+  D1_print("WEB: error 404 ");
+  String message = F("File Not Found ");
+  message += "URI:";
   message += Server.uri();
-  message += F("\nMethod: ");
+  message += F(" Method:");
   message += (Server.method() == HTTP_GET) ? "GET" : "POST";
-  message += F("\nArguments: ");
+  message += F(" Arguments:");
   message += Server.args(); // last is plain = all arg
-  D_println(message);
+  D1_println(message);
   message += F("\n<br>");
   for (uint8_t i = 0; i < Server.args(); i++) {
     message += ' ' + Server.argName(i) + ": " + Server.arg(i) + "\n<br>";

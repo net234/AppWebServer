@@ -407,7 +407,7 @@ void AppWebServer::setCallBack_OnRefreshItem(bool (*onrefreshitem)(const String 
 }
 
 
-void AppWebServer::setCallBack_OnRepeatLine(bool (*onrepeatline)(const String &keyname, const int num)) {     // call back pour gerer les Repeat
+void AppWebServer::setCallBack_OnRepeatLine(bool (*onrepeatline)(const String &keyname, const uint16_t linenumber)) {     // call back pour gerer les Repeat
   onRepeatLinePtr = onrepeatline;
 }
 
@@ -441,6 +441,15 @@ void   AppWebServer::stopCaptivePortal() {
   WiFi.enableAP(false);   // wifi est non persistant
   _captivePortalActive = false;
   D1_println(F("WEB: stop captivePortal"));
+}
+
+//  redirect a request with a redirect error 302
+void AppWebServer::redirectRequestTo(const String aURI)  { 
+  redirectUri = aURI;
+}
+
+uint16_t AppWebServer::getRepeatLineNumber() {
+	return (repeatLineNumber);
 }
 
 void AppWebServer::printEvWEB(const uint8_t eventcode)  {
