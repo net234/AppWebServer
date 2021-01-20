@@ -45,6 +45,8 @@ FileConfig  TWConfig;
 
 #include <ESP8266WebServer.h>    // web server to answer WEB request
 #include <ESP8266mDNS.h>         // need to answer   devicename.local  request
+
+//#include <ArduinoMDNS.h>
 #include <DNSServer.h>           // used by Captive Portal to redirect web request to main page
 
 
@@ -364,8 +366,7 @@ void AppWebServer::handleEvent() {
       D_print(TWS::localIp);
       D_print(F(" r="));
       D_println(result);
-
-      if (trySetupPtr) {
+       if (trySetupPtr) {
         jobWEBTrySetupValidate();
       }
 
