@@ -239,7 +239,7 @@ void HTTP_HandleRequests() {
   String fileMIME;
 
   // find MIMETYPE for standard files
-  enum fileType_t { NONE, CSS, ICO, PNG, JPG, GIF, JS, CSV, HTML } fileType = NONE;
+  enum fileType_t { NONE, CSS, ICO, PNG, JPG, GIF, JS, CSV, HTML, JSON } fileType = NONE;
   if ( filePath.endsWith(F(".css")) ) {
     fileType = CSS;
     fileMIME = F("text/css");
@@ -264,7 +264,10 @@ void HTTP_HandleRequests() {
   } else if ( filePath.endsWith(F(".html")) ) {
     fileType = HTML;
     fileMIME = F("text/html");
-  }
+   } else if ( filePath.endsWith(F(".json")) ) {
+    fileType = JSON;
+    fileMIME = F("application/json");
+ }
 
   // On each http request a callback to onRequest is call to inform sketch of any http request with the submit name if submit arg exist
   // if redirectTo(aUri) is set then an error 302 will be sent to redirect request
@@ -288,7 +291,7 @@ void HTTP_HandleRequests() {
   // default page name is the filename itself
   int aPos = filePath.lastIndexOf("/");
   if (aPos >= 0) AppWebPtr->PAGENAME = filePath.substring(aPos + 1);
-  if ( fileType == HTML || fileType == CSV ) {
+  if ( fileType == HTML || fileType == CSV || fileType == JSON ) {
     // try to grab keyword in first line of the file
     File aFile = LittleFS.open(filePath, "r");
     if (aFile) {
@@ -402,7 +405,7 @@ void HTTP_HandleRequests() {
   if (aFile) {
     D_print(F("WEB: Answer with file "));
     D_println(filePath);
-    if ( fileType == HTML || fileType == CSV ) {
+    if ( fileType == HTML || fileType == CSV || fileType == JSON ) {
       Server.sendHeader("Cache-Control", "no-cache");
       Server.setContentLength(CONTENT_LENGTH_UNKNOWN);
       doChunk = true;

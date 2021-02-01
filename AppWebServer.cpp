@@ -493,3 +493,17 @@ void AppWebServer::printEvWEB(const uint8_t eventcode)  {
       break;
   }
 }
+
+uint16_t AppWebServer::getArgs() {
+	return Server.args();
+}
+String AppWebServer::getArg(const String argname) {
+	return Server.arg(argname);
+}
+String AppWebServer::getArg(const uint16_t argnum) {
+	return Server.arg(argnum);
+}
+String AppWebServer::getArgName(const uint16_t argnum) {
+	return Server.argName(argnum);
+}
+	

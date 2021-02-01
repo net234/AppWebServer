@@ -26,12 +26,15 @@
    V1.0.1  Add interactive js
    V1.0.2  Stand alone captive portal
    Version B02  01/2020  Ajout des events  (BetaEvents.lib)
-   Version B03  13/01/2020   
+   Version B03  13/01/2021   
      Add csv   they are parsed as html
      add a trim on refesh send back
      add redirectRequestTo(aUri)  method
      error 404 set in D1 error
      add  getRepeatLineNumber() methode
+   Version B04   30/01/2021
+     add JSON fileType
+     add server arg(s) methode
 
    TODO:  refresh stay a 1000 (after auto refresh from wifisetup)
    TODO: mode AP permanent with no capture
@@ -141,7 +144,10 @@ class AppWebServer {
     void setCallBack_OnRepeatLine(bool (*onRepeatLine)(const String &repeatname, const uint16_t lineNumber));     // call back pour gerer les Repeat
 	uint16_t getRepeatLineNumber();
     void printEvWEB(const uint8_t eventcode);
-    //    String getArg(const String argName);
+	uint16_t getArgs();
+	String getArg(const String argname);
+	String getArg(const uint16_t argnum);
+	String getArgName(const uint16_t argnum);
     //    String currentUri();                            // return the last requested URI (actual page in calllback)
     //    // var
     // PRESET ACTION KEY
