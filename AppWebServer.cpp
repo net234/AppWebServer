@@ -35,6 +35,17 @@
 #include "AppWebServer.h"
 //#include <ESP8266WiFi.h>
 
+
+#ifdef DEBUG_ON 
+#define D_print    Serial.print
+#define D_println  Serial.println
+#else
+#define D_print(...)    while(0) {  }
+#define D_println(...)  while(0) {  }
+#endif
+#define D1_print    Serial.print
+#define D1_println  Serial.println
+
 #include "betaEvents.h"  // needed to be Event User of the Sketch Instance
 
 // pointeur vers l'instance utilisateur

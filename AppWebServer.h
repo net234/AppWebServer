@@ -48,21 +48,11 @@
 //#include "ESP8266.h"
 #include <ESP8266WiFi.h>
 
+//#define DEBUG_ON
+
 //#ifndef EventManagerPtr
 //#error BetaEvents.h is missing in yous sketch !!!!
 //#endif
-
-
-//#define DEBUG_ON
-#ifdef DEBUG_ON 
-#define D_print    Serial.print
-#define D_println  Serial.println
-#else
-#define D_print(...)    while(0) {  }
-#define D_println(...)  while(0) {  }
-#endif
-#define D1_print    Serial.print
-#define D1_println  Serial.println
 
 
 /* Evenements du Manager (voir betaEvents.h)

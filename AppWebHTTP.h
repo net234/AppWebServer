@@ -275,13 +275,13 @@ void HTTP_HandleRequests() {
 
 
   TWS::redirectUri = "";
-  String submitValue;
-  if ( Server.hasArg(F("submit")) ) {
-    submitValue = Server.arg(F("submit"));
+  String submitValue = Server.arg(F("action"));
+  if ( submitValue.length() == 0 ) submitValue = Server.arg(F("request"));  // TODO: remove this
+  if ( submitValue.length() != 0 ) {
     D_print(F("WEB: Submit action '"));
     D_print(submitValue);
     D_println("'");
-  }
+  } 
 
   // this buffer is user for file transismission and is locked in static ram to avoid heap fragmentation
   static    char staticBufferLine[1025];               // static are global so dont overload stack

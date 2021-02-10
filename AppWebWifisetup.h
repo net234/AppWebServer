@@ -48,6 +48,14 @@ int network[MAXNETWORK + 1];
 int networkSize = 0;
 int currentLine = 0;
 
+/*****
+see https://stackoverflow.com/questions/11626786/what-does-void-mean-and-how-to-use-it
+to better write compareNetwork
+  const int *aInt =a;
+  const int *bint =b
+return ( WiFi.RSSI(*bInt) - WiFi.RSSI(*aInt) );
+******/
+
 // call back pour sort network
 int compareNetwork (const void * a, const void * b) {
   return ( WiFi.RSSI(*(int*)b) - WiFi.RSSI(*(int*)a) );  // this is why I dont like C
