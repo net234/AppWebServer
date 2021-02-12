@@ -276,7 +276,7 @@ void HTTP_HandleRequests() {
 
   TWS::redirectUri = "";
   String submitValue = Server.arg(F("action"));
-  if ( submitValue.length() == 0 ) submitValue = Server.arg(F("request"));  // TODO: remove this
+  if ( submitValue.length() == 0 ) submitValue = Server.arg(F("submit"));  // TODO: remove this
   if ( submitValue.length() != 0 ) {
     D_print(F("WEB: Submit action '"));
     D_print(submitValue);
