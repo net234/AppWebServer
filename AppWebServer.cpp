@@ -517,4 +517,9 @@ String AppWebServer::getArg(const uint16_t argnum) {
 String AppWebServer::getArgName(const uint16_t argnum) {
 	return Server.argName(argnum);
 }
+
+
+IPAddress AppWebServer::getRemoteIP() {
+	return Server.client().remoteIP();
+}
 	

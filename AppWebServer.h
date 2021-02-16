@@ -35,12 +35,14 @@
    Version B04   30/01/2021
      add JSON fileType
      add server arg(s) methode
+     add getRemoteIp()  ---> Server.client().remoteIP()
 
    TODO:  refresh stay a 1000 (after auto refresh from wifisetup)
    TODO: mode AP permanent with no capture
    TODO: better use of ACTION/Message Page
    TODO: better deal with new random / random
    TODO: change getRepeatLineNumber() with first line starting to 1 instead of 0
+   TODO: provide a way to answer a String as payload of request (faster for json)
 **********/
 
 #pragma once
@@ -138,6 +140,7 @@ class AppWebServer {
 	String getArg(const String argname);
 	String getArg(const uint16_t argnum);
 	String getArgName(const uint16_t argnum);
+	IPAddress getRemoteIP();
     //    String currentUri();                            // return the last requested URI (actual page in calllback)
     //    // var
     // PRESET ACTION KEY
